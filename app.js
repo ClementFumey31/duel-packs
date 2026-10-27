@@ -37,7 +37,7 @@ function cardHtml(card, rarity, { big = false, showName = true, badge = true } =
   const r = rarityInfo(rarity);
   return `<div class="card ${big ? 'lg' : ''} t${r.tier}" data-fx="${r.fx}">
     <img src="${artUrl(card.a)}" alt="${esc(card.n)}" loading="lazy" decoding="async" onerror="this.parentNode.classList.add('noimg')">
-    <div class="fx"></div><div class="fxn"></div>
+    <div class="fx"></div><div class="fxn"></div><div class="spk"></div>
     ${badge && r.tier > 0 ? `<span class="rbadge">${esc(r.label)}</span>` : ''}
     <div class="cname">${esc(card.n)}</div>
   </div>`;
@@ -50,12 +50,13 @@ function bindTilt(el, strength = 14) {
     const b = el.getBoundingClientRect();
     const px = Math.min(1, Math.max(0, (x - b.left) / b.width));
     const py = Math.min(1, Math.max(0, (y - b.top) / b.height));
+    card.classList.add('tilting');
     card.style.setProperty('--mx', px * 100 + '%');
     card.style.setProperty('--my', py * 100 + '%');
     card.style.setProperty('--ang', Math.round(px * 360) + 'deg');
     card.style.transform = `rotateY(${(px - .5) * strength * 2}deg) rotateX(${(.5 - py) * strength * 2}deg)`;
   };
-  const reset = () => { card.style.transform = ''; card.style.setProperty('--mx', '50%'); card.style.setProperty('--my', '50%'); };
+  const reset = () => { card.classList.remove('tilting'); card.style.transform = ''; card.style.setProperty('--mx', '50%'); card.style.setProperty('--my', '50%'); };
   el.addEventListener('pointermove', (e) => move(e.clientX, e.clientY));
   el.addEventListener('pointerdown', (e) => move(e.clientX, e.clientY));
   el.addEventListener('pointerleave', reset);
@@ -168,7 +169,67 @@ async function renderSets() {
   draw();
 }
 
+// ---------- Effets : particules, éclairs, vibrations ----------
+const TIER_FX = {
+  0: null,
+  1: { colors: ['#e8e8f4', '#ffffff'], n: 16, vib: 15 },
+  2: { colors: ['#6bb8ff', '#bfe0ff', '#ffffff'], n: 34, vib: 25 },
+  3: { colors: ['#ffd86b', '#fff3c4', '#ff9f1c'], n: 60, shake: 1, flash: .28, rays: 1, vib: [30, 40, 30] },
+  4: { colors: ['#ff9be4', '#9be7ff', '#ffffff', '#ffd86b'], n: 95, shake: 1, flash: .4, rays: 1, ring: 1, vib: [40, 40, 60] },
+  5: { colors: ['#6bffb8', '#ffffff', '#9be7ff', '#ffd86b'], n: 130, shake: 1, flash: .55, rays: 1, ring: 1, vib: [50, 40, 50, 40, 80] },
+  6: { colors: ['#ff6bd6', '#ffd86b', '#6bffb8', '#6bb8ff', '#b06bff', '#ffffff'], n: 200, shake: 2, flash: .75, rays: 1, ring: 1, vib: [60, 40, 60, 40, 120] },
+  7: { colors: ['#ffe38a', '#ff6bd6', '#6bffb8', '#6bb8ff', '#ffffff'], n: 280, shake: 2, flash: 1, rays: 1, ring: 1, vib: [80, 40, 80, 40, 80, 40, 200] },
+};
+const GLOW = { 0: '#6b6b88', 1: '#c0c0d8', 2: '#6bb8ff', 3: '#ffd86b', 4: '#ff9be4', 5: '#6bffb8', 6: '#ffffff', 7: '#ffe38a' };
+
+const FXP = { cv: null, ctx: null, parts: [], raf: 0, d: 1 };
+function fxInit() {
+  if (FXP.cv) return;
+  const cv = document.createElement('canvas');
+  cv.className = 'fxcanvas';
+  document.body.appendChild(cv);
+  FXP.cv = cv; FXP.ctx = cv.getContext('2d');
+  FXP.d = Math.min(2, window.devicePixelRatio || 1);
+  cv.width = innerWidth * FXP.d; cv.height = innerHeight * FXP.d;
+}
+function fxBurst(x, y, colors, n, power = 1) {
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) n = Math.round(n / 4);
+  fxInit();
+  for (let i = 0; i < n; i++) {
+    const a = Math.random() * Math.PI * 2, v = (2 + Math.random() * 9) * power;
+    FXP.parts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 2, life: 60 + Math.random() * 50, s: 2 + Math.random() * 4, c: colors[(Math.random() * colors.length) | 0], star: Math.random() < .4 });
+  }
+  if (!FXP.raf) FXP.raf = requestAnimationFrame(fxLoop);
+}
+function fxLoop() {
+  const { ctx, cv, d } = FXP;
+  if (!ctx) { FXP.raf = 0; return; }
+  ctx.clearRect(0, 0, cv.width, cv.height);
+  FXP.parts = FXP.parts.filter((p) => p.life > 0);
+  for (const p of FXP.parts) {
+    p.x += p.vx; p.y += p.vy; p.vy += .14; p.vx *= .985; p.life--;
+    ctx.globalAlpha = Math.max(0, Math.min(1, p.life / 40));
+    ctx.fillStyle = p.c;
+    const s = p.s * d, x = p.x * d, y = p.y * d;
+    if (p.star) {
+      ctx.beginPath();
+      ctx.moveTo(x, y - s * 1.8); ctx.lineTo(x + s * .55, y); ctx.lineTo(x, y + s * 1.8); ctx.lineTo(x - s * .55, y); ctx.closePath();
+      ctx.moveTo(x - s * 1.8, y); ctx.lineTo(x, y - s * .55); ctx.lineTo(x + s * 1.8, y); ctx.lineTo(x, y + s * .55); ctx.closePath();
+      ctx.fill();
+    } else ctx.fillRect(x - s / 2, y - s / 2, s, s);
+  }
+  ctx.globalAlpha = 1;
+  FXP.raf = FXP.parts.length ? requestAnimationFrame(fxLoop) : 0;
+  if (!FXP.parts.length) ctx.clearRect(0, 0, cv.width, cv.height);
+}
+function fxStop() {
+  cancelAnimationFrame(FXP.raf); FXP.raf = 0; FXP.parts = [];
+  if (FXP.cv) { FXP.cv.remove(); FXP.cv = null; FXP.ctx = null; }
+}
+
 // ---------- Ouverture ----------
+const stageBg = () => `<div class="stage-bg"><img src="${cropUrl(ICONIC.blueEyes)}" alt="" onerror="this.remove()"></div>`;
+
 async function startOpen(set) {
   if (tick().boosters <= 0) { toast('Plus de booster. Reviens dans quelques minutes.'); return; }
   const stage = document.createElement('div');
@@ -185,19 +246,22 @@ async function startOpen(set) {
   if (!data.pool.length) { stage.remove(); toast('Cette extension ne contient aucune carte exploitable.'); return; }
   S.tot[set.n] = data.pool.length;
 
-  const close = () => { stage.remove(); go(tab === 'sets' ? 'sets' : tab); };
-  stage.innerHTML = `
+  const close = () => { fxStop(); stage.remove(); go(tab === 'sets' ? 'sets' : tab); };
+  const face = `<img class="packimg" src="${esc(boosterUrl(set))}" alt="" onerror="this.remove()"><span class="packlabel">${esc(set.n)}</span>`;
+  stage.innerHTML = `${stageBg()}
     <div class="top"><span id="stinfo"></span><button class="x" id="cl" aria-label="Fermer">✕</button></div>
-    <div class="stage-bg"><img src="${cropUrl(ICONIC.blueEyes)}" alt="" onerror="this.remove()"></div>
-    <button class="pack" id="pack"><img class="packimg" src="${esc(boosterUrl(set))}" alt="" onerror="this.remove()"><span class="packlabel">${esc(set.n)}<small>Touche pour ouvrir</small></span></button>
-    <div class="hint" id="hint"></div>`;
+    <button class="pack" id="pack" aria-label="Ouvrir le booster"><span class="pk bot">${face}</span><span class="pk topc">${face}</span><i class="burst"></i></button>
+    <div class="hint" id="hint"><b>Touche le booster</b>pour l’ouvrir</div>`;
   $('#cl', stage).onclick = close;
   const info = () => ($('#stinfo', stage).textContent = `Boosters : ${tick().boosters} / ${MAX_BOOSTERS}`);
   info();
 
+  let opening = false;
   $('#pack', stage).onclick = () => {
+    if (opening) return;
     const next = consumeBooster(S, Date.now());
     if (!next) { toast('Plus de booster.'); return; }
+    opening = true;
     S = { ...S, boosters: next.boosters, lastRefillAt: next.lastRefillAt, lastSeenAt: next.lastSeenAt, opened: S.opened + 1 };
     const pulled = openPack(data.pool, packConfigFor(set.n, set.d));
     const results = pulled.map((p) => {
@@ -209,42 +273,77 @@ async function startOpen(set) {
     S.hist = [...results.slice().reverse().map((x) => ({ a: x.card.a, n: x.card.n, r: x.r })), ...S.hist].slice(0, 30);
     saveState(S);
     info();
-    $('#pack', stage).classList.add('tear');
+    $('#hint', stage).innerHTML = '';
     // les meilleures cartes en dernier, comme dans un vrai booster
     results.sort((a, b) => rarityInfo(a.r).tier - rarityInfo(b.r).tier);
-    setTimeout(() => revealStep(stage, set, data, results, 0, close), 520);
+    const pk = $('#pack', stage);
+    pk.classList.add('shake');                       // 1) le paquet tremble
+    setTimeout(() => {                                // 2) le haut se déchire
+      pk.classList.remove('shake'); pk.classList.add('tear');
+      const r = pk.getBoundingClientRect();
+      fxBurst(r.left + r.width / 2, r.top + r.height * .13, ['#ffd86b', '#fff3c4', '#ffffff'], 70, 1.1);
+      if (navigator.vibrate) { try { navigator.vibrate(30); } catch {} }
+    }, 650);
+    setTimeout(() => revealStep(stage, set, data, results, 0, close), 1500); // 3) les cartes apparaissent
   };
 }
-
-const GLOW = { 0: '#6b6b88', 1: '#c0c0d8', 2: '#6bb8ff', 3: '#ffd86b', 4: '#ff9be4', 5: '#6bffb8', 6: '#ffffff' };
 
 function revealStep(stage, set, data, results, i, close) {
   if (i >= results.length) return summary(stage, set, data, results, close);
   const r = results[i];
   const meta = rarityInfo(r.r);
-  stage.innerHTML = `
-    <div class="top"><span>${i + 1} / ${results.length}</span><button class="x" id="cl" aria-label="Fermer">✕</button></div>
-    <div class="glow ${meta.tier >= 2 ? 'on' : ''}" style="--gc:${GLOW[meta.tier] || GLOW[2]}"></div>
-    <div class="reveal" id="rv">${cardHtml(r.card, r.r, { big: true })}</div>
-    <div class="hint"><b>${esc(meta.label)}${r.isNew ? '<span class="new">NOUVEAU</span>' : ''}</b>${esc(r.c)} · touche pour continuer</div>
-    <div class="dots">${results.map((_, k) => `<i class="${k <= i ? 'd' : ''}"></i>`).join('')}</div>`;
-  const rv = $('#rv', stage);
-  $('.card', rv).classList.add('enter');
+  const tier = meta.tier;
+  const gc = GLOW[tier] || GLOW[2];
+  const fx = TIER_FX[Math.min(tier, 7)];
+  stage.innerHTML = `${stageBg()}
+    <div class="top"><span>${i + 1} / ${results.length}</span><div class="row"><button class="skip" id="skip">Tout voir</button><button class="x" id="cl" aria-label="Fermer">✕</button></div></div>
+    <div class="rays" id="rays" style="--gc:${gc}"></div>
+    <div class="glow ${tier >= 2 ? 'on' : ''}" style="--gc:${gc}"></div>
+    <div class="reveal ${tier >= 2 ? 'hot' : ''}" id="rv" style="--gc:${gc}">
+      <div class="flipper enter" id="fl">
+        <div class="face back"><i></i></div>
+        <div class="face front">${cardHtml(r.card, r.r, { big: true })}</div>
+      </div>
+    </div>
+    <div class="hint" id="hint"><b>Touche pour retourner</b>la carte</div>
+    <div class="dots">${results.map((_, k) => `<i class="${k < i ? 'd' : ''}"></i>`).join('')}</div>
+    <div class="flash" id="flash"></div>`;
+  const rv = $('#rv', stage), fl = $('#fl', stage), hint = $('#hint', stage);
   bindTilt(rv, 16);
-  if (meta.tier >= 4 && navigator.vibrate) { try { navigator.vibrate(40); } catch {} }
+
+  const celebrate = () => {
+    hint.innerHTML = `<b>${esc(meta.label)}${r.isNew ? '<span class="new">NOUVEAU</span>' : ''}</b>${esc(r.c)} · touche pour continuer`;
+    if (!fx) return;
+    const b = rv.getBoundingClientRect(), cx = b.left + b.width / 2, cy = b.top + b.height / 2;
+    fxBurst(cx, cy, fx.colors, fx.n, 1 + tier * .12);
+    if (tier >= 5) setTimeout(() => fxBurst(cx, cy, fx.colors, Math.round(fx.n / 2), 1.5), 260);
+    if (fx.flash) { const f = $('#flash', stage); f.style.setProperty('--fa', fx.flash); f.classList.add('go'); }
+    if (fx.rays) $('#rays', stage).classList.add('on');
+    if (fx.ring) rv.classList.add('ring-go');
+    if (fx.shake) { stage.classList.add('shake' + fx.shake); setTimeout(() => stage.classList.remove('shake' + fx.shake), 750); }
+    if (fx.vib && navigator.vibrate) { try { navigator.vibrate(fx.vib); } catch {} }
+  };
+
+  let flipped = false, busy = false;
   $('#cl', stage).onclick = (e) => { e.stopPropagation(); close(); };
-  let moved = false;
-  rv.addEventListener('pointerdown', () => (moved = false));
-  rv.addEventListener('pointermove', () => (moved = true));
-  stage.onclick = (e) => { if (e.target.closest('#cl')) return; revealStep(stage, set, data, results, i + 1, close); };
+  $('#skip', stage).onclick = (e) => { e.stopPropagation(); summary(stage, set, data, results, close); };
+  stage.onclick = (e) => {
+    if (e.target.closest('#cl') || e.target.closest('#skip') || busy) return;
+    if (!flipped) {
+      flipped = true; busy = true;
+      fl.classList.add('flipped');
+      setTimeout(celebrate, 330);                      // l'effet part à mi-retournement
+      setTimeout(() => (busy = false), tier >= 3 ? 900 : 450);
+    } else revealStep(stage, set, data, results, i + 1, close);
+  };
 }
 
 function summary(stage, set, data, results, close) {
   const best = results.reduce((a, b) => (rarityInfo(b.r).tier > rarityInfo(a.r).tier ? b : a));
   stage.onclick = null;
-  stage.innerHTML = `
+  stage.innerHTML = `${stageBg()}
     <div class="top"><span>${esc(set.n)}</span><button class="x" id="cl" aria-label="Fermer">✕</button></div>
-    <div class="sumgrid"><div class="grid">${results.map((x) => `<div class="slot ${rarityInfo(x.r).tier ? 't' + rarityInfo(x.r).tier : ''}">${cardHtml(x.card, x.r, { showName: false })}<div class="code">${x.isNew ? '<b style="color:var(--gold)">NEW</b> ' : ''}${esc(x.c)}</div></div>`).join('')}</div></div>
+    <div class="sumgrid"><div class="grid">${results.map((x) => `<div class="slot ${rarityInfo(x.r).tier ? 't' + Math.min(7, rarityInfo(x.r).tier) : ''}">${cardHtml(x.card, x.r, { showName: false })}<div class="code">${x.isNew ? '<b style="color:var(--gold)">NEW</b> ' : ''}${esc(x.c)}</div></div>`).join('')}</div></div>
     <div class="hint"><b>${results.filter((x) => x.isNew).length} nouvelle(s) carte(s)</b>Meilleure : ${esc(best.card.n)} (${esc(rarityInfo(best.r).label)})</div>
     <div class="row" style="width:100%;max-width:520px;margin-top:10px">
       <button class="btn ghost grow" id="back">Terminer</button>
@@ -252,7 +351,7 @@ function summary(stage, set, data, results, close) {
     </div>`;
   $('#cl', stage).onclick = close;
   $('#back', stage).onclick = close;
-  $('#again', stage).onclick = () => { stage.remove(); startOpen(set); };
+  $('#again', stage).onclick = () => { fxStop(); stage.remove(); startOpen(set); };
 }
 
 // ---------- Collection ----------

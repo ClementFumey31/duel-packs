@@ -200,3 +200,124 @@ h2::after { content: ""; flex: 1; height: 1px; background: linear-gradient(90deg
 .pack:has(.packimg) .packlabel { width: 100%; padding: 28px 12px 12px; font-size: 15px; line-height: 1.15; color: #fff3c4; background: linear-gradient(0deg, #000d 55%, transparent); text-shadow: 0 1px 4px #000; }
 .pack:has(.packimg) .packlabel small { color: #f5c451; }
 @media (prefers-reduced-motion: reduce) { .hero-art img.on { animation: none; } }
+
+/* =====================================================================
+   Animations d'ouverture et effets de rareté animés
+   ===================================================================== */
+@property --mx { syntax: '<percentage>'; inherits: true; initial-value: 50%; }
+@property --my { syntax: '<percentage>'; inherits: true; initial-value: 50%; }
+@property --ang { syntax: '<angle>'; inherits: true; initial-value: 200deg; }
+
+/* --- Canvas de particules (au-dessus de tout) --- */
+.fxcanvas { position: fixed; inset: 0; width: 100vw; height: 100vh; z-index: 90; pointer-events: none; }
+
+/* --- Booster en deux moitiés : le haut se déchire --- */
+.pack { background: none; border: 0; box-shadow: none; overflow: visible; padding: 0; filter: drop-shadow(0 20px 40px #000a); display: block; }
+.pack::after { display: none; }
+.pk { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; padding: 16px; border-radius: 14px; overflow: hidden; border: 2px solid var(--gold); background: linear-gradient(160deg, #ffd86b, #d9962b 40%, #7a4d0c); font-weight: 900; font-size: 22px; color: #2a1d00; }
+.pk::after { content: ""; position: absolute; inset: 0; background: linear-gradient(110deg, transparent 35%, #fff8 50%, transparent 65%); transform: translateX(-100%); animation: sheen 2.8s infinite; pointer-events: none; }
+.pk:has(.packimg) { place-items: end center; padding: 0; }
+.pk .packimg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.pk .packlabel { position: relative; z-index: 1; font-family: var(--display); }
+.pk.bot { clip-path: inset(12% 0 0 0); }
+.pk.topc { clip-path: inset(0 0 88% 0); transform-origin: 0% 100%; }
+.pack .burst { position: absolute; left: -20%; right: -20%; top: 0; height: 34%; border-radius: 50%; opacity: 0; pointer-events: none; z-index: 3; background: radial-gradient(ellipse at 50% 40%, #fff 0, #ffd86bcc 35%, transparent 70%); }
+.pack.shake { animation: pkshake .65s ease-in-out; }
+@keyframes pkshake {
+  0%, 100% { transform: none; } 10% { transform: translate(-7px, 0) rotate(-2.5deg); } 22% { transform: translate(7px, 0) rotate(2.5deg); }
+  34% { transform: translate(-9px, 0) rotate(-3deg); } 46% { transform: translate(9px, 0) rotate(3deg); } 58% { transform: translate(-6px, 0) rotate(-2deg); }
+  70% { transform: translate(6px, 0) rotate(2deg); } 85% { transform: scale(1.05); }
+}
+.pack.tear { animation: none; }
+.pack.tear .pk.topc { animation: toprip .75s cubic-bezier(.3, .6, .4, 1) forwards; }
+.pack.tear .pk.bot { animation: botfade .8s .3s ease-in forwards; }
+.pack.tear .burst { animation: burstgo .85s ease-out; }
+@keyframes toprip { to { transform: translate(60px, -190px) rotate(26deg); opacity: 0; } }
+@keyframes botfade { to { transform: translateY(50px) scale(1.12); opacity: 0; filter: brightness(2.4); } }
+@keyframes burstgo { 0% { opacity: 0; transform: scale(.4); } 30% { opacity: 1; } 100% { opacity: 0; transform: scale(3.2); } }
+
+/* --- Carte face cachée, retournement 3D --- */
+.reveal { perspective: 1000px; position: relative; }
+.flipper { position: relative; width: 100%; aspect-ratio: 421 / 614; transform-style: preserve-3d; transition: transform .75s cubic-bezier(.3, 1.15, .4, 1); }
+.flipper.flipped { transform: rotateY(180deg); }
+.flipper.enter { animation: pop .45s cubic-bezier(.2, 1.3, .4, 1); }
+.reveal .card.enter { animation: none; }
+.face { position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden; border-radius: 3.2% / 2.2%; }
+.face.front { transform: rotateY(180deg); }
+.face.back { border: 6px solid #c8a23c; background: #1c0d04; box-shadow: inset 0 0 0 2px #0008, 0 24px 70px #000b; overflow: hidden; }
+.face.back i { position: absolute; inset: 0; background:
+  radial-gradient(circle at 50% 50%, #ffe38a 0 7%, #b8741c 8% 13%, transparent 14%),
+  repeating-radial-gradient(circle at 50% 50%, #5a2d0d 0 3%, #2a1405 3% 6%),
+  #1c0d04; }
+.face.back i::after { content: ""; position: absolute; inset: 0; background: conic-gradient(from 0deg at 50% 50%, #ffd86b00, #ffd86b55 25%, #ffd86b00 50%, #ffd86b55 75%, #ffd86b00); mix-blend-mode: overlay; }
+.reveal.hot .face.back { box-shadow: inset 0 0 0 2px #0008, 0 0 0 3px var(--gc), 0 0 46px 10px var(--gc); animation: pulse .9s ease-in-out infinite alternate; }
+@keyframes pulse { from { filter: brightness(.9); } to { filter: brightness(1.45); } }
+
+/* --- Rayons, éclair, anneau, secousse --- */
+.rays { position: absolute; width: 150vmax; height: 150vmax; left: 50%; top: 50%; margin: -75vmax 0 0 -75vmax; z-index: -1; opacity: 0; pointer-events: none; background: repeating-conic-gradient(from 0deg, var(--gc) 0 5deg, transparent 5deg 16deg); -webkit-mask: radial-gradient(circle, #000 0, transparent 52%); mask: radial-gradient(circle, #000 0, transparent 52%); transition: opacity .6s; animation: spinr 16s linear infinite; }
+.rays.on { opacity: .5; }
+@keyframes spinr { to { transform: rotate(360deg); } }
+.flash { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; z-index: 8; }
+.flash.go { animation: flashgo .75s ease-out; }
+@keyframes flashgo { 0% { opacity: var(--fa, .5); } 100% { opacity: 0; } }
+.reveal::after { content: ""; position: absolute; left: 50%; top: 50%; width: 24px; height: 24px; margin: -12px 0 0 -12px; border-radius: 50%; border: 2px solid var(--gc, #fff); opacity: 0; pointer-events: none; }
+.reveal.ring-go::after { animation: ringgo .95s ease-out; }
+@keyframes ringgo { 0% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(34); } }
+.stage.shake1 { animation: stshake .45s; }
+.stage.shake2 { animation: stshake .75s; }
+@keyframes stshake { 0%, 100% { transform: none; } 15% { transform: translate(-6px, 4px); } 30% { transform: translate(6px, -4px); } 45% { transform: translate(-5px, -3px); } 60% { transform: translate(5px, 3px); } 80% { transform: translate(-2px, 1px); } }
+.stage .top .row { gap: 8px; }
+.skip { background: #fff1; border: 0; border-radius: 19px; padding: 0 14px; height: 38px; color: var(--fg); font-weight: 700; font-size: 13px; }
+
+/* --- Effets de cartes animés (cartes en grand : révélation et fiche) --- */
+@keyframes drift {
+  0% { --mx: 15%; --my: 20%; --ang: 120deg; }
+  50% { --mx: 85%; --my: 40%; --ang: 240deg; }
+  100% { --mx: 30%; --my: 85%; --ang: 360deg; }
+}
+.reveal .card:not(.tilting), .sheet .card:not(.tilting) { animation: drift 6s ease-in-out infinite alternate; }
+
+/* étincelles */
+.card .spk { position: absolute; z-index: 5; pointer-events: none; opacity: 0; mix-blend-mode: screen; left: 11.9%; right: 11.9%; top: 18.1%; bottom: 29.6%;
+  background:
+    radial-gradient(circle at 12% 22%, #fff 0 1.5px, transparent 2.6px), radial-gradient(circle at 78% 15%, #fff 0 1.2px, transparent 2.3px),
+    radial-gradient(circle at 40% 62%, #fff 0 1.9px, transparent 3.1px), radial-gradient(circle at 88% 70%, #fff 0 1.3px, transparent 2.4px),
+    radial-gradient(circle at 25% 88%, #fff 0 1.5px, transparent 2.6px), radial-gradient(circle at 62% 35%, #fff 0 1.1px, transparent 2.1px),
+    radial-gradient(circle at 55% 80%, #fff 0 1.4px, transparent 2.5px), radial-gradient(circle at 8% 55%, #fff 0 1.2px, transparent 2.2px); }
+@keyframes twinkle { 0%, 100% { opacity: .1; transform: scale(1) rotate(0); } 50% { opacity: 1; transform: scale(1.05) rotate(4deg); } }
+.card[data-fx="foil_art"] .spk { opacity: .5; animation: twinkle 3.2s ease-in-out infinite; }
+.card[data-fx="foil_art_gloss"] .spk, .card[data-fx="embossed"] .spk, .card[data-fx="engraved"] .spk,
+.card[data-fx="mosaic"] .spk, .card[data-fx="shatter"] .spk { opacity: .85; animation: twinkle 2.2s ease-in-out infinite; }
+.card[data-fx="full_foil"] .spk, .card[data-fx="grandmaster"] .spk { left: 0; right: 0; top: 0; bottom: 0; opacity: .9; animation: twinkle 1.7s ease-in-out infinite; }
+.slot .card .spk, .mini .card .spk { animation: none; }
+
+/* Ghost : brume nacrée */
+.card[data-fx="ghost"] .spk { opacity: 1; filter: blur(7px); mix-blend-mode: screen; animation: mist 5s ease-in-out infinite alternate;
+  background: radial-gradient(ellipse at 30% 65%, #ffffffcc, transparent 55%), radial-gradient(ellipse at 72% 28%, #cfe8ffcc, transparent 55%); }
+@keyframes mist { from { transform: translate(-7%, 3%) scale(1.1); } to { transform: translate(7%, -3%) scale(1.3); } }
+.slot .card[data-fx="ghost"] .spk, .mini .card[data-fx="ghost"] .spk { animation: none; }
+
+/* Rare : le foil du nom balaie en continu */
+@keyframes namesweep { from { background-position: 0% 0; } to { background-position: 100% 0; } }
+.reveal .card:not(.tilting)[data-fx="foil_name"] .fxn, .sheet .card:not(.tilting)[data-fx="foil_name"] .fxn { animation: namesweep 2.6s ease-in-out infinite alternate; }
+
+/* Grand Master Rare : arc-en-ciel intégral, bordure à hiéroglyphes dorés */
+.card[data-fx="grandmaster"] .fx { left: 0; right: 0; top: 0; bottom: 0; opacity: .75; mix-blend-mode: color-dodge;
+  background: conic-gradient(from var(--ang, 200deg) at var(--mx) var(--my), #ff6bd6, #ffd86b, #6bffb8, #6bb8ff, #b06bff, #ff6bd6), repeating-linear-gradient(60deg, #fff0 0 7px, #ffffff44 7px 8px); }
+.card[data-fx="grandmaster"] .fxn { opacity: .6; background: linear-gradient(100deg, #ffe38a, #ff6bd6, #6bffb8, #6bb8ff); background-size: 220% 100%; background-position: var(--mx) 0; }
+.card[data-fx="grandmaster"]::before { content: ""; position: absolute; inset: 0; z-index: 6; pointer-events: none; border-radius: inherit; padding: 2.4%; opacity: .9;
+  background: repeating-linear-gradient(90deg, #ffe38a 0 5px, #8a5a10 5px 9px, #ffe38a 9px 11px);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0); }
+.card[data-fx="grandmaster"]::after { content: ""; position: absolute; inset: 0; z-index: 5; pointer-events: none; background: radial-gradient(circle at var(--mx) var(--my), #fffb, transparent 38%); mix-blend-mode: overlay; }
+
+/* Cartes rares dans le récapitulatif : halo de couleur */
+.sumgrid .slot.t3 .card { box-shadow: 0 0 14px #ffd86b99; }
+.sumgrid .slot.t4 .card { box-shadow: 0 0 16px #ff9be4aa; }
+.sumgrid .slot.t5 .card { box-shadow: 0 0 18px #6bffb8aa; }
+.sumgrid .slot.t6 .card { box-shadow: 0 0 20px #fff, 0 0 30px #b06bffaa; }
+.sumgrid .slot.t7 .card { box-shadow: 0 0 22px #ffe38a, 0 0 36px #ff6bd6aa; }
+.t7 .rbadge { color: #ffe38a; }
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal .card, .sheet .card, .rays, .card .spk, .pack.shake, .reveal.hot .face.back { animation: none !important; }
+}

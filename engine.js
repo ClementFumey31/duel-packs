@@ -57,12 +57,14 @@ export const RARITY_META = {
   ghost_rare:             { label: 'Ghost Rare',       tier: 5, fx: 'ghost' },
   pharaohs_rare:          { label: "Pharaoh's Rare",   tier: 5, fx: 'full_foil' },
   starlight_rare:         { label: 'Starlight Rare',   tier: 6, fx: 'full_foil' },
+  grandmaster_rare:       { label: 'Grand Master Rare', tier: 7, fx: 'grandmaster' },
   collectors_rare:        { label: "Collector's Rare", tier: 6, fx: 'full_foil' },
   quarter_century_secret: { label: 'Quarter Century',  tier: 6, fx: 'engraved' },
   ten_thousand_secret:    { label: '10000 Secret',     tier: 6, fx: 'engraved' },
 };
 
 const PARSE_TABLE = [
+  [/grand ?master/, 'grandmaster_rare'],
   [/^common$/, 'common'],
   [/short print|super short/, 'short_print'],
   [/^rare$/, 'rare'],
@@ -98,7 +100,7 @@ export function parseRarity(raw) {
 
 export function rarityInfo(key) {
   if (RARITY_META[key]) return RARITY_META[key];
-  if (key.startsWith('x:')) return { label: key.slice(2), tier: 2, fx: 'foil_art' }; // inconnue : effet Super par défaut
+  if (key.startsWith('x:')) return { label: key.slice(2), tier: 3, fx: 'foil_art_gloss' }; // rareté inconnue : traitée comme rare, jamais comme commune
   return RARITY_META.common;
 }
 
@@ -111,8 +113,11 @@ export function rarityInfo(key) {
 //  - 2008-09 → 2015-11 : 7 communes + 1 Rare + 1 carte (Commune 5/8, Super 1/4, Ultra 1/12, Secret 1/24)
 //  - 2016-01 → 2020-01 : 7 communes + 1 Rare + 1 carte Super+ (Super 3/4, Ultra 1/6, Secret 1/12)
 //  - 2020-04 → auj.    : 8 communes + 1 carte Super+ (mêmes ratios que 2016-2020, non précisés par la source)
-// Starlight Rare : estimations de 1/72 à 1/288 par booster selon les sources -> 1/144 retenu.
-const STARLIGHT = 1 / 144;
+// Raretés "chase" : tirées à part, par un jet très faible par booster (jamais via les poids de slot).
+//  - Starlight Rare : estimations de 1/72 à 1/288 par booster selon les sources -> 1/144 retenu.
+//  - Grand Master Rare : numérotée 001-100, 200 exemplaires max par carte (Amériques + Europe), aucun taux
+//    publié -> 1/1000 par booster retenu (choix volontairement très bas).
+export const CHASE = { grandmaster_rare: 1 / 1000, starlight_rare: 1 / 144 };
 
 const ERA_A = { noDuplicates: true, slots: [
   { count: 8, weights: { common: 1 } },
@@ -162,7 +167,6 @@ function pickWeighted(weights, rnd) {
 
 /** pool: [{c: code, i: cardId, r: rarityKey}] -> cartes tirées */
 export function openPack(pool, config = DEFAULT_PACK, rnd = Math.random) {
-  const hasStar = pool.some((p) => p.r === 'starlight_rare');
   const byRarity = new Map();
   for (const p of pool) {
     if (!byRarity.has(p.r)) byRarity.set(p.r, []);
@@ -174,11 +178,12 @@ export function openPack(pool, config = DEFAULT_PACK, rnd = Math.random) {
     for (let n = 0; n < slot.count; n++) {
       let weights = {};
       for (const [r, w] of Object.entries(slot.weights)) if (byRarity.has(r)) weights[r] = w;
-      // le slot "carte brillante" peut devenir une Starlight Rare
-      if (hasStar && slot.weights.super_rare && !slot.weights.common) weights.starlight_rare = STARLIGHT; // les poids du slot somment à 1
       if (!Object.keys(weights).length) {
-        // l'extension n'a aucune des raretés prévues : on tire parmi ce qui existe, les plus basses d'abord
-        for (const r of byRarity.keys()) weights[r] = 1 / (1 + rarityInfo(r).tier) ** 2;
+        // L'extension n'a aucune des raretés prévues (ex. coffret sans communes) : on tire parmi ce qui existe,
+        // avec un poids qui chute très vite avec la rareté (8^-palier). Les raretés "chase" en sont exclues.
+        for (const r of byRarity.keys()) if (!(r in CHASE)) weights[r] = 8 ** -rarityInfo(r).tier;
+        // extension composée uniquement de raretés "chase" : on les tire à parts égales
+        if (!Object.keys(weights).length) for (const r of byRarity.keys()) weights[r] = 1;
       }
       // On tire la rareté, puis une carte NON encore vue de cette rareté (sans changer la rareté,
       // pour ne pas fausser les taux). Si toutes ses cartes sont déjà sorties, on retire une autre rareté.
@@ -192,6 +197,17 @@ export function openPack(pool, config = DEFAULT_PACK, rnd = Math.random) {
         out.push(cand);
         break;
       }
+    }
+  }
+  // Jet "chase" : la dernière carte (la plus rare) peut être remplacée par une rareté exceptionnelle
+  if (out.length) {
+    const order = Object.keys(CHASE).sort((a, b) => CHASE[a] - CHASE[b]); // la plus rare d'abord
+    for (const r of order) {
+      if (!byRarity.has(r) || rnd() >= CHASE[r]) continue;
+      const list = byRarity.get(r).filter((c) => !seen.has(c.c + '|' + c.r));
+      if (!list.length) continue;
+      out[out.length - 1] = list[Math.floor(rnd() * list.length)];
+      break;
     }
   }
   return out;
