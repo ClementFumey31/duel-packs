@@ -510,3 +510,16 @@ h2::after { background: linear-gradient(90deg, var(--gold), transparent); box-sh
 .sheet .info h3 { font-family: var(--title); font-weight: 700; color: var(--gold-hi); }
 #dock button { font-size: 9px; letter-spacing: .03em; padding-left: 0; padding-right: 0; }
 .slot .code { word-break: break-all; }
+
+/* V5 : la carte part vers le haut, plus de liserés rouges sur les cartes */
+.reveal.out .tiltwrap { transition: transform .46s cubic-bezier(.45, 0, .85, .35), opacity .46s ease-in !important; transform: translate3d(0, -125vh, 140px) rotateX(28deg) rotateZ(5deg) scale(1.08) !important; opacity: 0 !important; }
+.reveal.out .pile { transition: transform .3s ease-out; transform: translateY(-6px); }
+@keyframes rise { from { transform: translate3d(0, 40px, -60px) scale(.94); opacity: 0; } to { transform: none; opacity: 1; } }
+.flipper.enter { animation: rise .45s cubic-bezier(.2, .9, .25, 1.05); }
+.slot .card, .slot:hover .card { box-shadow: 0 6px 14px #000a; }
+.legend { box-shadow: 0 16px 36px #000c; }
+.cback { border: 0; box-shadow: 0 6px 16px #000a; }
+.pile i { border-color: #2a1114; }
+.spinbox .face.front, .spinbox .face.back { box-shadow: 0 30px 70px #000d; }
+.face.front, .face.back { box-shadow: 0 24px 50px #000b; }
+.reveal.hot .face.back { box-shadow: 0 0 40px 6px var(--gc); }

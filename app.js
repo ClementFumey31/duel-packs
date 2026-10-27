@@ -359,7 +359,7 @@ function revealStep(stage, set, data, results, i, close) {
   bindTilt(rv, 16);
 
   const celebrate = () => {
-    hint.innerHTML = `<b>${esc(meta.label)}${r.isNew ? '<span class="new">Nouveau</span>' : ''}</b>${esc(r.c)} · touche pour continuer`;
+    hint.innerHTML = `<b>${esc(meta.label)}${r.isNew ? '<span class="new">Nouveau</span>' : ''}</b>${esc(r.c)} · glisse la carte vers le haut`;
     if (!fx) return;
     const b = rv.getBoundingClientRect(), cx = b.left + b.width / 2, cy = b.top + b.height / 2;
     fxBurst(cx, cy, fx.colors, fx.n, 1 + tier * .12);
@@ -374,18 +374,27 @@ function revealStep(stage, set, data, results, i, close) {
   let flipped = false, busy = false;
   $('#cl', stage).onclick = (e) => { e.stopPropagation(); close(); };
   $('#skip', stage).onclick = (e) => { e.stopPropagation(); summary(stage, set, data, results, close); };
+  const next = () => {
+    if (busy) return;
+    busy = true;
+    rv.classList.add('out');                            // la carte part vers le haut, comme on la retire du paquet
+    setTimeout(() => revealStep(stage, set, data, results, i + 1, close), reduced() ? 10 : 460);
+  };
+  const flip = () => {
+    flipped = true; busy = true;
+    fl.classList.add('flipped');
+    setTimeout(celebrate, 360);
+    setTimeout(() => (busy = false), tier >= 3 ? 900 : 480);
+  };
+  let sy = null, swiped = false;
+  stage.onpointerdown = (e) => { sy = e.clientY; swiped = false; };
+  stage.onpointerup = (e) => {
+    if (sy !== null && flipped && !busy && sy - e.clientY > 50) { swiped = true; next(); }
+    sy = null;
+  };
   stage.onclick = (e) => {
-    if (e.target.closest('#cl') || e.target.closest('#skip') || busy) return;
-    if (!flipped) {
-      flipped = true; busy = true;
-      fl.classList.add('flipped');
-      setTimeout(celebrate, 360);                      // l'effet part à mi-retournement
-      setTimeout(() => (busy = false), tier >= 3 ? 900 : 480);
-    } else {
-      busy = true;
-      rv.classList.add('out');                          // la carte glisse hors de l'écran
-      setTimeout(() => revealStep(stage, set, data, results, i + 1, close), reduced() ? 10 : 300);
-    }
+    if (e.target.closest('#cl') || e.target.closest('#skip') || busy || swiped) { swiped = false; return; }
+    if (!flipped) flip(); else next();
   };
 }
 
