@@ -91,8 +91,17 @@ view.addEventListener('scroll', () => view.style.setProperty('--sy', Math.min(vi
 
 // ---------- Navigation ----------
 document.querySelectorAll('#dock button').forEach((b) => b.addEventListener('click', () => go(b.dataset.tab)));
+const BG = { home: 'blueEyes', sets: 'darkMagician', collection: 'exodia', profile: 'redEyes' };
+let bgI = 0;
+function setBg(t) {
+  const imgs = document.querySelectorAll('#bgmon img');
+  const nx = imgs[bgI ^= 1], old = imgs[bgI ^ 1];
+  nx.onload = () => { nx.classList.add('on'); old.classList.remove('on'); };
+  nx.src = cropUrl(ICONIC[BG[t]]);
+}
 function go(t) {
   tab = t;
+  setBg(t);
   document.querySelectorAll('#dock button').forEach((b) => b.classList.toggle('on', b.dataset.tab === t));
   clearInterval(timerId);
   clearInterval(heroTimer);
@@ -109,7 +118,7 @@ function renderHome() {
     <section class="panel vault">
       <div class="ring">
         <svg viewBox="0 0 120 120" aria-hidden="true">
-          <defs><linearGradient id="rg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f6dc9a"/><stop offset="1" stop-color="#c98a2a"/></linearGradient></defs>
+          <defs><linearGradient id="rg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff8a94"/><stop offset="1" stop-color="#ff2a3d"/></linearGradient></defs>
           <circle class="track" cx="60" cy="60" r="52"/>
           <circle class="prog" id="prog" cx="60" cy="60" r="52" stroke-dashoffset="326.7"/>
         </svg>
@@ -119,6 +128,8 @@ function renderHome() {
       <div class="slots" id="pips" aria-hidden="true"></div>
       <button class="btn" id="go">Ouvrir un booster</button>
     </section>
+    <h2>Légendes</h2>
+    <div class="legends">${['blueEyes', 'darkMagician', 'redEyes', 'exodia', 'slifer', 'obelisk', 'ra', 'summonedSkull', 'magicianGirl'].map((k) => `<div class="legend"><img src="${artUrl(ICONIC[k])}" alt="" loading="lazy" onerror="this.parentNode.remove()"></div>`).join('')}</div>
     <h2>Dernières cartes</h2>
     <div class="shelf" id="last">${lastCards.length ? '' : '<div class="empty" style="width:100%">Ta première carte apparaîtra ici.</div>'}</div>`;
   $('#go').onclick = () => go('sets');
