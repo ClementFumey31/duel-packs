@@ -1,6 +1,6 @@
 import { computeBoosters, consumeBooster, MAX_BOOSTERS, REFILL_MS, openPack, packConfigFor, rarityInfo } from './engine.js';
 import { loadState, saveState, parseSave } from './state.js';
-import { getSets, getSetData, artUrl } from './data.js';
+import { getSets, getSetData, artUrl, cropUrl, boosterUrl, ICONIC } from './data.js';
 
 let S = loadState();
 let tab = 'home';
@@ -62,12 +62,33 @@ function bindTilt(el, strength = 14) {
   el.addEventListener('pointerup', (e) => { if (e.pointerType !== 'mouse') reset(); });
 }
 
+// ---------- Bandeaux de monstres emblématiques ----------
+function banner(ids, title, sub) {
+  const imgs = ids.map((id, i) => `<img src="${cropUrl(id)}" alt="" class="${i === 0 ? 'on' : ''}" onerror="this.remove()">`).join('');
+  return `<header class="hero"><div class="hero-art">${imgs}</div><div class="hero-fade"></div>
+    <div class="hero-txt"><h1>${esc(title)}</h1>${sub ? `<p>${esc(sub)}</p>` : ''}</div></header>`;
+}
+let heroTimer = null;
+function startHero() {
+  clearInterval(heroTimer);
+  const imgs = [...document.querySelectorAll('.hero-art img')];
+  if (imgs.length < 2) return;
+  let k = 0;
+  heroTimer = setInterval(() => {
+    if (!document.querySelector('.hero-art')) return clearInterval(heroTimer);
+    imgs[k % imgs.length].classList.remove('on');
+    k++;
+    imgs[k % imgs.length].classList.add('on');
+  }, 4500);
+}
+
 // ---------- Navigation ----------
 document.querySelectorAll('#tabs button').forEach((b) => b.addEventListener('click', () => go(b.dataset.tab)));
 function go(t) {
   tab = t;
   document.querySelectorAll('#tabs button').forEach((b) => b.classList.toggle('on', b.dataset.tab === t));
   clearInterval(timerId);
+  clearInterval(heroTimer);
   view.scrollTop = 0;
   ({ home: renderHome, sets: renderSets, collection: renderCollection, profile: renderProfile })[t]();
 }
@@ -76,8 +97,7 @@ function go(t) {
 function renderHome() {
   const lastCards = S.hist.slice(0, 12);
   view.innerHTML = `
-    <h1>Duel Packs</h1>
-    <p class="sub">Ouvre des boosters, complète tes extensions.</p>
+    ${banner([ICONIC.blueEyes, ICONIC.darkMagician, ICONIC.redEyes, ICONIC.exodia, ICONIC.slifer, ICONIC.obelisk, ICONIC.ra], 'Duel Packs', 'Ouvre des boosters, complète tes extensions.')}
     <section class="stock">
       <div class="big"><span id="n">0</span><small> / ${MAX_BOOSTERS}</small></div>
       <div class="pips" id="pips"></div>
@@ -88,6 +108,7 @@ function renderHome() {
     <h2>Dernières cartes obtenues</h2>
     <div class="last" id="last">${lastCards.length ? '' : '<div class="empty" style="width:100%">Aucune carte pour l’instant.</div>'}</div>`;
   $('#go').onclick = () => go('sets');
+  startHero();
   const last = $('#last');
   lastCards.forEach((h) => {
     const d = document.createElement('div');
@@ -109,8 +130,7 @@ function renderHome() {
 let setsCache = null;
 async function renderSets() {
   view.innerHTML = `
-    <h1>Extensions</h1>
-    <p class="sub">Choisis un booster à ouvrir. Stock : ${tick().boosters} / ${MAX_BOOSTERS}</p>
+    ${banner([ICONIC.darkMagician, ICONIC.magicianGirl], 'Extensions', 'Choisis un booster à ouvrir. Stock : ' + tick().boosters + ' / ' + MAX_BOOSTERS)}
     <div class="seg"><button class="on">TCG</button><button disabled title="À venir">OCG (bientôt)</button></div>
     <input class="search" id="q" placeholder="Rechercher une extension…" value="${esc(setFilter.q)}" autocomplete="off">
     <div class="seg" id="sort"><button data-s="new" class="${setFilter.sort === 'new' ? 'on' : ''}">Récentes</button><button data-s="old" class="${setFilter.sort === 'old' ? 'on' : ''}">Anciennes</button><button data-s="az" class="${setFilter.sort === 'az' ? 'on' : ''}">A–Z</button></div>
@@ -131,7 +151,7 @@ async function renderSets() {
       const own = S.tot[s.n] ? Object.keys(S.col).filter((k) => k.startsWith(s.n + '||')).length : 0;
       const pct = S.tot[s.n] ? Math.round((own / S.tot[s.n]) * 100) : null;
       return `<button class="setrow" data-i="${setsCache.indexOf(s)}">
-        <div class="setcode">${esc(s.c)}</div>
+        <div class="setimg"><span>${esc(s.c)}</span><img src="${esc(boosterUrl(s))}" alt="" loading="lazy" decoding="async" onerror="this.remove()"></div>
         <div class="grow"><div class="nm">${esc(s.n)}</div><div class="meta">${s.k} cartes${s.d ? ' · ' + esc(s.d.slice(0, 4)) : ''}</div></div>
         ${pct !== null ? `<div class="pct">${pct}%</div>` : ''}</button>`;
     }).join('') : '<div class="empty">Aucune extension trouvée.</div>';
@@ -144,6 +164,7 @@ async function renderSets() {
     document.querySelectorAll('#sort button').forEach((b) => b.classList.toggle('on', b.dataset.s === s));
     draw();
   };
+  startHero();
   draw();
 }
 
@@ -167,7 +188,8 @@ async function startOpen(set) {
   const close = () => { stage.remove(); go(tab === 'sets' ? 'sets' : tab); };
   stage.innerHTML = `
     <div class="top"><span id="stinfo"></span><button class="x" id="cl" aria-label="Fermer">✕</button></div>
-    <button class="pack" id="pack">${esc(set.n)}<small>Touche pour ouvrir</small></button>
+    <div class="stage-bg"><img src="${cropUrl(ICONIC.blueEyes)}" alt="" onerror="this.remove()"></div>
+    <button class="pack" id="pack"><img class="packimg" src="${esc(boosterUrl(set))}" alt="" onerror="this.remove()"><span class="packlabel">${esc(set.n)}<small>Touche pour ouvrir</small></span></button>
     <div class="hint" id="hint"></div>`;
   $('#cl', stage).onclick = close;
   const info = () => ($('#stinfo', stage).textContent = `Boosters : ${tick().boosters} / ${MAX_BOOSTERS}`);
@@ -243,13 +265,13 @@ function renderCollection() {
   }
   if (!colSet || !sets.includes(colSet)) colSet = sets[0];
   view.innerHTML = `
-    <h1>Collection</h1>
-    <p class="sub">${Object.keys(S.col).length} cartes différentes · ${Object.values(S.col).reduce((a, b) => a + b, 0)} au total</p>
+    ${banner([ICONIC.exodia, ICONIC.summonedSkull], 'Collection', Object.keys(S.col).length + ' cartes différentes · ' + Object.values(S.col).reduce((a, b) => a + b, 0) + ' au total')}
     <div class="chips" id="setchips">${sets.map((n) => `<button class="chip ${n === colSet ? 'on' : ''}" data-n="${esc(n)}">${esc(n)}</button>`).join('')}</div>
     <div class="seg" id="own"><button data-o="all" class="${colFilter.own === 'all' ? 'on' : ''}">Toutes</button><button data-o="own" class="${colFilter.own === 'own' ? 'on' : ''}">Possédées</button><button data-o="miss" class="${colFilter.own === 'miss' ? 'on' : ''}">Manquantes</button></div>
     <div id="colbody"><div class="empty"><span class="spin"></span></div></div>`;
   $('#setchips').onclick = (e) => { const n = e.target.dataset.n; if (n) { colSet = n; colFilter.rarity = 'all'; renderCollection(); } };
   $('#own').onclick = (e) => { const o = e.target.dataset.o; if (o) { colFilter.own = o; renderCollection(); } };
+  startHero();
   drawSetCollection();
 }
 
@@ -303,8 +325,7 @@ function renderProfile() {
   owned.forEach((k) => { const r = k.split('||')[2]; const t = rarityInfo(r).tier; byTier[t] = (byTier[t] || 0) + 1; });
   const rare = owned.filter((k) => rarityInfo(k.split('||')[2]).tier >= 4).length;
   view.innerHTML = `
-    <h1>Profil</h1>
-    <p class="sub">Tout est enregistré sur cet appareil.</p>
+    ${banner([ICONIC.redEyes, ICONIC.ra], 'Profil', 'Tout est enregistré sur cet appareil.')}
     <div class="stats">
       <div class="stat"><b>${S.opened}</b><span>Boosters ouverts</span></div>
       <div class="stat"><b>${total}</b><span>Cartes obtenues</span></div>
@@ -318,6 +339,7 @@ function renderProfile() {
       <label class="btn ghost sm" style="cursor:pointer">Importer<input type="file" id="imp" accept=".json,application/json" hidden></label>
       <button class="btn ghost sm" id="rst" style="color:var(--danger)">Réinitialiser</button>
     </div><div id="rstbox"></div>`;
+  startHero();
   $('#exp').onclick = async () => {
     const text = JSON.stringify(S);
     try {

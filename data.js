@@ -6,6 +6,16 @@ const DAY = 864e5;
 
 // Carte complète (cadre, ATK/DEF, texte), pas seulement l'artwork
 export const artUrl = (id) => `https://images.ygoprodeck.com/images/cards/${id}.jpg`;
+// Artwork seul (pour les bandeaux et fonds)
+export const cropUrl = (id) => `https://images.ygoprodeck.com/images/cards_cropped/${id}.jpg`;
+// Visuel du booster : champ fourni par l'API, sinon adresse habituelle construite depuis le code de l'extension
+export const boosterUrl = (set) => set.i || `https://images.ygoprodeck.com/images/sets/${encodeURIComponent(set.c)}.jpg`;
+
+// Monstres les plus emblématiques (numéros de carte) pour les décors
+export const ICONIC = {
+  blueEyes: 89631139, darkMagician: 46986414, redEyes: 74677422, exodia: 33396948,
+  slifer: 10000020, obelisk: 10000000, ra: 10000010, magicianGirl: 38033121, summonedSkull: 70781052,
+};
 
 let dbp;
 const mem = new Map();
@@ -50,14 +60,14 @@ async function getJson(url) {
   return r.json();
 }
 
-/** Liste des extensions TCG : [{n: nom, c: préfixe, k: nb de cartes, d: date}] */
+/** Liste des extensions TCG : [{n: nom, c: préfixe, k: nb de cartes, d: date, i: image du booster}] */
 export async function getSets() {
-  const cached = await kvGet('sets');
+  const cached = await kvGet('sets2');
   if (cached && Date.now() - cached.t < DAY) return cached.v;
   try {
     const raw = await getJson(API + '/cardsets.php');
-    const v = raw.map((s) => ({ n: s.set_name, c: s.set_code, k: s.num_of_cards || 0, d: s.tcg_date || '' }));
-    await kvSet('sets', { t: Date.now(), v });
+    const v = raw.map((s) => ({ n: s.set_name, c: s.set_code, k: s.num_of_cards || 0, d: s.tcg_date || '', i: s.set_image || '' }));
+    await kvSet('sets2', { t: Date.now(), v });
     return v;
   } catch (e) {
     if (cached) return cached.v;
