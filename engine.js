@@ -152,6 +152,8 @@ export const PACK_SIZE_RULES = [
   [/duelist pack/, 5],
   [/battle pack/, 5],
   [/legendary duelists/, 5],
+  [/hidden arsenal/, 5],
+  [/premium gold/, 5],
 ];
 /** Surcharges exactes (nom de l'extension -> nombre de cartes). */
 export const PACK_SIZE_OVERRIDES = {};

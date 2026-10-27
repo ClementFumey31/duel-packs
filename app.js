@@ -1,4 +1,4 @@
-import { computeBoosters, consumeBooster, MAX_BOOSTERS, REFILL_MS, openPack, packConfigFor, rarityInfo } from './engine.js';
+import { computeBoosters, consumeBooster, MAX_BOOSTERS, REFILL_MS, openPack, packConfigFor, packSizeFor, rarityInfo } from './engine.js';
 import { loadState, saveState, parseSave } from './state.js';
 import { getSets, getSetData, artUrl, cropUrl, boosterUrl, ICONIC } from './data.js';
 
@@ -155,6 +155,8 @@ function renderHome() {
 
 // ---------- Extensions ----------
 let setsCache = null;
+// produits qui ne s'ouvrent pas comme des boosters (decks préconstruits, coffrets, promos)
+const NOT_BOOSTER = /structure deck|starter deck|\btins?\b|promo|demo|sneak peek|tournament|championship|gift|collector|bundle|speed duel starter|\bdeck\b.*(box|set)|duel terminal|world championship|jump|shonen|magazine|coffret/i;
 async function renderSets() {
   view.innerHTML = `
     ${banner([ICONIC.darkMagician, ICONIC.magicianGirl], 'Extensions', `Choisis un booster. Il te reste <b>${tick().boosters}</b> sur ${MAX_BOOSTERS}.`)}
@@ -172,7 +174,7 @@ async function renderSets() {
   }
   const draw = () => {
     const q = setFilter.q.trim().toLowerCase();
-    let l = setsCache.filter((s) => s.k >= 5 && (!q || s.n.toLowerCase().includes(q) || s.c.toLowerCase().includes(q)));
+    let l = setsCache.filter((s) => s.k >= 5 && !NOT_BOOSTER.test(s.n) && (!q || s.n.toLowerCase().includes(q) || s.c.toLowerCase().includes(q)));
     const by = { new: (a, b) => (b.d || '').localeCompare(a.d || ''), old: (a, b) => (a.d || '9').localeCompare(b.d || '9'), az: (a, b) => a.n.localeCompare(b.n) }[setFilter.sort];
     l = l.sort(by).slice(0, 300);
     $('#list').innerHTML = l.length ? `<div class="tiles">${l.map((s) => {
@@ -181,7 +183,7 @@ async function renderSets() {
       return `<button class="tile" data-i="${setsCache.indexOf(s)}">
         <div class="tile-img"><span>${esc(s.c)}</span><img src="${esc(boosterUrl(s))}" alt="" loading="lazy" decoding="async" onerror="this.remove()">${pct !== null ? `<i class="tile-pct">${pct}%</i>` : ''}</div>
         <div class="tile-name">${esc(s.n)}</div>
-        <div class="tile-meta">${s.d ? esc(s.d.slice(0, 4)) + ' · ' : ''}${s.k} cartes</div></button>`;
+        <div class="tile-meta">${s.d ? esc(s.d.slice(0, 4)) + ' · ' : ''}${s.k} cartes · ${packSizeFor(s.n, s.k)}/booster</div></button>`;
     }).join('')}</div>` : '<div class="empty">Aucune extension trouvée.</div>';
     document.querySelectorAll('.tile').forEach((b) => (b.onclick = () => startOpen(setsCache[+b.dataset.i])));
   };
@@ -572,7 +574,7 @@ function renderProfile() {
   $('#rst').onclick = () => {
     $('#rstbox').innerHTML = `<div class="err" style="margin-top:12px">Tout effacer ? Cette action est définitive.<div class="row" style="margin-top:10px"><button class="btn sm" id="yes" style="background:var(--danger);color:#2b0a12">Oui, effacer</button><button class="btn ghost sm" id="no">Annuler</button></div></div>`;
     $('#no').onclick = () => ($('#rstbox').innerHTML = '');
-    $('#yes').onclick = () => { try { localStorage.removeItem('duelpacks.save.v1'); } catch {} S = loadState(); setsCache = null; go('home'); toast('Collection réinitialisée'); };
+    $('#yes').onclick = () => { try { localStorage.removeItem('duelpacks.save.v2'); } catch {} S = loadState(); setsCache = null; go('home'); toast('Collection réinitialisée'); };
   };
 }
 

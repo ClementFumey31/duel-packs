@@ -1,5 +1,5 @@
 // Sauvegarde locale (localStorage). Tout reste sur l'appareil.
-const KEY = 'duelpacks.save.v1';
+const KEY = 'duelpacks.save.v2';
 
 const fresh = () => {
   const now = Date.now();
