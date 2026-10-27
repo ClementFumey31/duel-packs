@@ -5,13 +5,15 @@ import { getSets, getSetData, artUrl, cropUrl, boosterUrl, ICONIC } from './data
 let S = loadState();
 let tab = 'home';
 let setFilter = { q: '', sort: 'new' };
-let colSet = null;           // extension affichée dans la collection
+let colSet = null;
 let colFilter = { own: 'all', rarity: 'all' };
 let timerId = null;
+let heroTimer = null;
 
 const $ = (s, r = document) => r.querySelector(s);
 const view = $('#view');
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 function toast(msg) {
   const t = $('#toast');
@@ -33,19 +35,23 @@ const fmt = (ms) => {
 };
 
 // ---------- Carte (composant) ----------
-function cardHtml(card, rarity, { big = false, showName = true, badge = true } = {}) {
+function cardHtml(card, rarity, { big = false, showName = true, badge = false, gem = false } = {}) {
   const r = rarityInfo(rarity);
   return `<div class="card ${big ? 'lg' : ''} t${r.tier}" data-fx="${r.fx}">
     <img src="${artUrl(card.a)}" alt="${esc(card.n)}" loading="lazy" decoding="async" onerror="this.parentNode.classList.add('noimg')">
-    <div class="fx"></div><div class="fxn"></div><div class="spk"></div>
-    ${badge && r.tier > 0 ? `<span class="rbadge">${esc(r.label)}</span>` : ''}
-    <div class="cname">${esc(card.n)}</div>
+    <div class="fx"></div><div class="fxn"></div><div class="spk"></div><div class="glare"></div>
+    ${gem && r.tier > 0 ? `<span class="gem t${Math.min(7, r.tier)}" title="${esc(r.label)}"></span>` : ''}
+    ${badge && r.tier > 0 ? `<span class="gem t${Math.min(7, r.tier)}"></span>` : ''}
+    ${showName ? `<div class="cname">${esc(card.n)}</div>` : '<div class="cname"></div>'}
   </div>`;
 }
+// Dos de carte : dessin d'origine, remplacé par "cardback.png" s'il est présent à côté de index.html
+const backHtml = () => `<div class="cback"><div class="cb-art"></div><img class="cb-img" src="cardback.png" alt="" onerror="this.remove()"></div>`;
 
-/** Effet holo piloté par le doigt/la souris. */
+/** Inclinaison 3D au doigt/souris. `el` contient une `.card` ; si `.tiltwrap` existe, c'est lui qui s'incline. */
 function bindTilt(el, strength = 14) {
   const card = $('.card', el) || el;
+  const tgt = $('.tiltwrap', el) || card;
   const move = (x, y) => {
     const b = el.getBoundingClientRect();
     const px = Math.min(1, Math.max(0, (x - b.left) / b.width));
@@ -54,22 +60,21 @@ function bindTilt(el, strength = 14) {
     card.style.setProperty('--mx', px * 100 + '%');
     card.style.setProperty('--my', py * 100 + '%');
     card.style.setProperty('--ang', Math.round(px * 360) + 'deg');
-    card.style.transform = `rotateY(${(px - .5) * strength * 2}deg) rotateX(${(.5 - py) * strength * 2}deg)`;
+    tgt.style.transform = `rotateY(${(px - .5) * strength * 2}deg) rotateX(${(.5 - py) * strength * 2}deg)`;
   };
-  const reset = () => { card.classList.remove('tilting'); card.style.transform = ''; card.style.setProperty('--mx', '50%'); card.style.setProperty('--my', '50%'); };
+  const reset = () => { card.classList.remove('tilting'); tgt.style.transform = ''; card.style.setProperty('--mx', '50%'); card.style.setProperty('--my', '50%'); };
   el.addEventListener('pointermove', (e) => move(e.clientX, e.clientY));
   el.addEventListener('pointerdown', (e) => move(e.clientX, e.clientY));
   el.addEventListener('pointerleave', reset);
   el.addEventListener('pointerup', (e) => { if (e.pointerType !== 'mouse') reset(); });
 }
 
-// ---------- Bandeaux de monstres emblématiques ----------
+// ---------- Bandeaux ----------
 function banner(ids, title, sub) {
   const imgs = ids.map((id, i) => `<img src="${cropUrl(id)}" alt="" class="${i === 0 ? 'on' : ''}" onerror="this.remove()">`).join('');
   return `<header class="hero"><div class="hero-art">${imgs}</div><div class="hero-fade"></div>
-    <div class="hero-txt"><h1>${esc(title)}</h1>${sub ? `<p>${esc(sub)}</p>` : ''}</div></header>`;
+    <div class="hero-txt"><h1>${esc(title)}</h1>${sub ? `<p>${sub}</p>` : ''}</div></header>`;
 }
-let heroTimer = null;
 function startHero() {
   clearInterval(heroTimer);
   const imgs = [...document.querySelectorAll('.hero-art img')];
@@ -80,48 +85,58 @@ function startHero() {
     imgs[k % imgs.length].classList.remove('on');
     k++;
     imgs[k % imgs.length].classList.add('on');
-  }, 4500);
+  }, 5000);
 }
+view.addEventListener('scroll', () => view.style.setProperty('--sy', Math.min(view.scrollTop, 400) + 'px'), { passive: true });
 
 // ---------- Navigation ----------
-document.querySelectorAll('#tabs button').forEach((b) => b.addEventListener('click', () => go(b.dataset.tab)));
+document.querySelectorAll('#dock button').forEach((b) => b.addEventListener('click', () => go(b.dataset.tab)));
 function go(t) {
   tab = t;
-  document.querySelectorAll('#tabs button').forEach((b) => b.classList.toggle('on', b.dataset.tab === t));
+  document.querySelectorAll('#dock button').forEach((b) => b.classList.toggle('on', b.dataset.tab === t));
   clearInterval(timerId);
   clearInterval(heroTimer);
   view.scrollTop = 0;
+  view.style.setProperty('--sy', '0px');
   ({ home: renderHome, sets: renderSets, collection: renderCollection, profile: renderProfile })[t]();
 }
 
 // ---------- Accueil ----------
 function renderHome() {
-  const lastCards = S.hist.slice(0, 12);
+  const lastCards = S.hist.slice(0, 14);
   view.innerHTML = `
-    ${banner([ICONIC.blueEyes, ICONIC.darkMagician, ICONIC.redEyes, ICONIC.exodia, ICONIC.slifer, ICONIC.obelisk, ICONIC.ra], 'Duel Packs', 'Ouvre des boosters, complète tes extensions.')}
-    <section class="stock">
-      <div class="big"><span id="n">0</span><small> / ${MAX_BOOSTERS}</small></div>
-      <div class="pips" id="pips"></div>
-      <div class="timer" id="timer"></div>
+    ${banner([ICONIC.blueEyes, ICONIC.darkMagician, ICONIC.redEyes, ICONIC.exodia, ICONIC.slifer, ICONIC.obelisk, ICONIC.ra], 'Duel Packs', 'Ouvre des boosters et complète tes extensions.')}
+    <section class="panel vault">
+      <div class="ring">
+        <svg viewBox="0 0 120 120" aria-hidden="true">
+          <defs><linearGradient id="rg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f6dc9a"/><stop offset="1" stop-color="#c98a2a"/></linearGradient></defs>
+          <circle class="track" cx="60" cy="60" r="52"/>
+          <circle class="prog" id="prog" cx="60" cy="60" r="52" stroke-dashoffset="326.7"/>
+        </svg>
+        <div class="ringtxt"><b id="n">0</b><span>sur ${MAX_BOOSTERS} boosters</span></div>
+      </div>
+      <p class="timer" id="timer"></p>
+      <div class="slots" id="pips" aria-hidden="true"></div>
+      <button class="btn" id="go">Ouvrir un booster</button>
     </section>
-    <div style="height:14px"></div>
-    <button class="btn" id="go">Choisir une extension</button>
-    <h2>Dernières cartes obtenues</h2>
-    <div class="last" id="last">${lastCards.length ? '' : '<div class="empty" style="width:100%">Aucune carte pour l’instant.</div>'}</div>`;
+    <h2>Dernières cartes</h2>
+    <div class="shelf" id="last">${lastCards.length ? '' : '<div class="empty" style="width:100%">Ta première carte apparaîtra ici.</div>'}</div>`;
   $('#go').onclick = () => go('sets');
   startHero();
   const last = $('#last');
   lastCards.forEach((h) => {
     const d = document.createElement('div');
     d.className = 'mini';
-    d.innerHTML = cardHtml({ a: h.a, n: h.n }, h.r, { showName: false, badge: false });
+    d.innerHTML = cardHtml({ a: h.a, n: h.n }, h.r, { showName: false, gem: true });
     last.appendChild(d);
   });
   const draw = () => {
     const v = tick();
     $('#n').textContent = v.boosters;
-    $('#pips').innerHTML = Array.from({ length: MAX_BOOSTERS }, (_, i) => `<span class="pip ${i < v.boosters ? 'full' : ''}"></span>`).join('');
-    $('#timer').textContent = v.boosters >= MAX_BOOSTERS ? 'Stock plein' : `Prochain booster dans ${fmt(v.msToNext)}`;
+    const p = v.boosters >= MAX_BOOSTERS ? 1 : 1 - v.msToNext / REFILL_MS;
+    $('#prog').style.strokeDashoffset = (326.7 * (1 - p)).toFixed(1);
+    $('#pips').innerHTML = Array.from({ length: MAX_BOOSTERS }, (_, i) => `<i class="${i < v.boosters ? 'full' : ''}"></i>`).join('');
+    $('#timer').innerHTML = v.boosters >= MAX_BOOSTERS ? 'Stock plein' : `Prochain booster dans <b>${fmt(v.msToNext)}</b>`;
   };
   draw();
   timerId = setInterval(draw, 1000);
@@ -131,11 +146,12 @@ function renderHome() {
 let setsCache = null;
 async function renderSets() {
   view.innerHTML = `
-    ${banner([ICONIC.darkMagician, ICONIC.magicianGirl], 'Extensions', 'Choisis un booster à ouvrir. Stock : ' + tick().boosters + ' / ' + MAX_BOOSTERS)}
-    <div class="seg"><button class="on">TCG</button><button disabled title="À venir">OCG (bientôt)</button></div>
-    <input class="search" id="q" placeholder="Rechercher une extension…" value="${esc(setFilter.q)}" autocomplete="off">
-    <div class="seg" id="sort"><button data-s="new" class="${setFilter.sort === 'new' ? 'on' : ''}">Récentes</button><button data-s="old" class="${setFilter.sort === 'old' ? 'on' : ''}">Anciennes</button><button data-s="az" class="${setFilter.sort === 'az' ? 'on' : ''}">A–Z</button></div>
+    ${banner([ICONIC.darkMagician, ICONIC.magicianGirl], 'Extensions', `Choisis un booster. Il te reste <b>${tick().boosters}</b> sur ${MAX_BOOSTERS}.`)}
+    <div class="seg"><button class="on">TCG</button><button disabled title="À venir">OCG, bientôt</button></div>
+    <input class="search" id="q" placeholder="Rechercher une extension" value="${esc(setFilter.q)}" autocomplete="off">
+    <div class="seg" id="sort"><button data-s="new" class="${setFilter.sort === 'new' ? 'on' : ''}">Récentes</button><button data-s="old" class="${setFilter.sort === 'old' ? 'on' : ''}">Anciennes</button><button data-s="az" class="${setFilter.sort === 'az' ? 'on' : ''}">A à Z</button></div>
     <div id="list"><div class="empty"><span class="spin"></span></div></div>`;
+  startHero();
   try {
     setsCache = setsCache || (await getSets());
   } catch (e) {
@@ -148,15 +164,15 @@ async function renderSets() {
     let l = setsCache.filter((s) => s.k >= 5 && (!q || s.n.toLowerCase().includes(q) || s.c.toLowerCase().includes(q)));
     const by = { new: (a, b) => (b.d || '').localeCompare(a.d || ''), old: (a, b) => (a.d || '9').localeCompare(b.d || '9'), az: (a, b) => a.n.localeCompare(b.n) }[setFilter.sort];
     l = l.sort(by).slice(0, 300);
-    $('#list').innerHTML = l.length ? l.map((s, i) => {
+    $('#list').innerHTML = l.length ? `<div class="tiles">${l.map((s) => {
       const own = S.tot[s.n] ? Object.keys(S.col).filter((k) => k.startsWith(s.n + '||')).length : 0;
       const pct = S.tot[s.n] ? Math.round((own / S.tot[s.n]) * 100) : null;
-      return `<button class="setrow" data-i="${setsCache.indexOf(s)}">
-        <div class="setimg"><span>${esc(s.c)}</span><img src="${esc(boosterUrl(s))}" alt="" loading="lazy" decoding="async" onerror="this.remove()"></div>
-        <div class="grow"><div class="nm">${esc(s.n)}</div><div class="meta">${s.k} cartes${s.d ? ' · ' + esc(s.d.slice(0, 4)) : ''}</div></div>
-        ${pct !== null ? `<div class="pct">${pct}%</div>` : ''}</button>`;
-    }).join('') : '<div class="empty">Aucune extension trouvée.</div>';
-    document.querySelectorAll('.setrow').forEach((b) => (b.onclick = () => startOpen(setsCache[+b.dataset.i])));
+      return `<button class="tile" data-i="${setsCache.indexOf(s)}">
+        <div class="tile-img"><span>${esc(s.c)}</span><img src="${esc(boosterUrl(s))}" alt="" loading="lazy" decoding="async" onerror="this.remove()">${pct !== null ? `<i class="tile-pct">${pct}%</i>` : ''}</div>
+        <div class="tile-name">${esc(s.n)}</div>
+        <div class="tile-meta">${s.d ? esc(s.d.slice(0, 4)) + ' · ' : ''}${s.k} cartes</div></button>`;
+    }).join('')}</div>` : '<div class="empty">Aucune extension trouvée.</div>';
+    document.querySelectorAll('.tile').forEach((b) => (b.onclick = () => startOpen(setsCache[+b.dataset.i])));
   };
   $('#q').oninput = (e) => { setFilter.q = e.target.value; draw(); };
   $('#sort').onclick = (e) => {
@@ -165,7 +181,6 @@ async function renderSets() {
     document.querySelectorAll('#sort button').forEach((b) => b.classList.toggle('on', b.dataset.s === s));
     draw();
   };
-  startHero();
   draw();
 }
 
@@ -193,7 +208,7 @@ function fxInit() {
   cv.width = innerWidth * FXP.d; cv.height = innerHeight * FXP.d;
 }
 function fxBurst(x, y, colors, n, power = 1) {
-  if (matchMedia('(prefers-reduced-motion: reduce)').matches) n = Math.round(n / 4);
+  if (reduced()) n = Math.round(n / 4);
   fxInit();
   for (let i = 0; i < n; i++) {
     const a = Math.random() * Math.PI * 2, v = (2 + Math.random() * 9) * power;
@@ -234,7 +249,7 @@ async function startOpen(set) {
   if (tick().boosters <= 0) { toast('Plus de booster. Reviens dans quelques minutes.'); return; }
   const stage = document.createElement('div');
   stage.className = 'stage';
-  stage.innerHTML = `<div class="empty"><span class="spin"></span><br><br>Chargement de ${esc(set.n)}…</div>`;
+  stage.innerHTML = `<div class="empty"><span class="spin"></span><br><br>Chargement de ${esc(set.n)}</div>`;
   document.body.appendChild(stage);
   let data;
   try { data = await getSetData(set.n); }
@@ -250,20 +265,37 @@ async function startOpen(set) {
   const face = `<img class="packimg" src="${esc(boosterUrl(set))}" alt="" onerror="this.remove()"><span class="packlabel">${esc(set.n)}</span>`;
   stage.innerHTML = `${stageBg()}
     <div class="top"><span id="stinfo"></span><button class="x" id="cl" aria-label="Fermer">✕</button></div>
-    <button class="pack" id="pack" aria-label="Ouvrir le booster"><span class="pk bot">${face}</span><span class="pk topc">${face}</span><i class="burst"></i></button>
+    <div class="packstage" id="pstage"><div class="pack3d" id="p3d">
+      <button class="pack" id="pack" aria-label="Ouvrir le booster"><span class="pk bot">${face}</span><span class="pk topc">${face}</span><i class="burst"></i></button>
+      <div class="pglare"></div></div></div>
+    <div class="pfloor"></div>
     <div class="hint" id="hint"><b>Touche le booster</b>pour l’ouvrir</div>`;
   $('#cl', stage).onclick = close;
-  const info = () => ($('#stinfo', stage).textContent = `Boosters : ${tick().boosters} / ${MAX_BOOSTERS}`);
+  const info = () => ($('#stinfo', stage).textContent = `${tick().boosters} / ${MAX_BOOSTERS} boosters`);
   info();
 
+  // inclinaison 3D du booster
+  const p3d = $('#p3d', stage), pst = $('#pstage', stage);
   let opening = false;
+  const tiltPack = (e) => {
+    if (opening) return;
+    const b = pst.getBoundingClientRect();
+    const px = Math.min(1, Math.max(0, (e.clientX - b.left) / b.width)), py = Math.min(1, Math.max(0, (e.clientY - b.top) / b.height));
+    p3d.style.transform = `rotateY(${(px - .5) * 34}deg) rotateX(${(.5 - py) * 24}deg)`;
+    p3d.style.setProperty('--gx', px * 100 + '%'); p3d.style.setProperty('--gy', py * 100 + '%');
+    $('.pglare', p3d).style.setProperty('--gx', px * 100 + '%'); $('.pglare', p3d).style.setProperty('--gy', py * 100 + '%');
+  };
+  stage.addEventListener('pointermove', tiltPack);
+  stage.addEventListener('pointerdown', tiltPack);
+
   $('#pack', stage).onclick = () => {
     if (opening) return;
     const next = consumeBooster(S, Date.now());
     if (!next) { toast('Plus de booster.'); return; }
     opening = true;
+    p3d.style.transform = '';
     S = { ...S, boosters: next.boosters, lastRefillAt: next.lastRefillAt, lastSeenAt: next.lastSeenAt, opened: S.opened + 1 };
-    const pulled = openPack(data.pool, packConfigFor(set.n, set.d));
+    const pulled = openPack(data.pool, packConfigFor(set.n, set.d, data.pool.length));
     const results = pulled.map((p) => {
       const key = set.n + '||' + p.c + '||' + p.r;
       const isNew = !S.col[key];
@@ -284,7 +316,7 @@ async function startOpen(set) {
       fxBurst(r.left + r.width / 2, r.top + r.height * .13, ['#ffd86b', '#fff3c4', '#ffffff'], 70, 1.1);
       if (navigator.vibrate) { try { navigator.vibrate(30); } catch {} }
     }, 650);
-    setTimeout(() => revealStep(stage, set, data, results, 0, close), 1500); // 3) les cartes apparaissent
+    setTimeout(() => revealStep(stage, set, data, results, 0, close), 1500); // 3) les cartes sortent
   };
 }
 
@@ -295,15 +327,17 @@ function revealStep(stage, set, data, results, i, close) {
   const tier = meta.tier;
   const gc = GLOW[tier] || GLOW[2];
   const fx = TIER_FX[Math.min(tier, 7)];
+  const left = results.length - i - 1;
   stage.innerHTML = `${stageBg()}
     <div class="top"><span>${i + 1} / ${results.length}</span><div class="row"><button class="skip" id="skip">Tout voir</button><button class="x" id="cl" aria-label="Fermer">✕</button></div></div>
     <div class="rays" id="rays" style="--gc:${gc}"></div>
     <div class="glow ${tier >= 2 ? 'on' : ''}" style="--gc:${gc}"></div>
     <div class="reveal ${tier >= 2 ? 'hot' : ''}" id="rv" style="--gc:${gc}">
-      <div class="flipper enter" id="fl">
-        <div class="face back"><i></i></div>
+      <div class="pile">${'<i></i>'.repeat(Math.min(3, left))}</div>
+      <div class="tiltwrap"><div class="flipper enter" id="fl">
+        <div class="face back">${backHtml()}</div>
         <div class="face front">${cardHtml(r.card, r.r, { big: true })}</div>
-      </div>
+      </div></div>
     </div>
     <div class="hint" id="hint"><b>Touche pour retourner</b>la carte</div>
     <div class="dots">${results.map((_, k) => `<i class="${k < i ? 'd' : ''}"></i>`).join('')}</div>
@@ -312,7 +346,7 @@ function revealStep(stage, set, data, results, i, close) {
   bindTilt(rv, 16);
 
   const celebrate = () => {
-    hint.innerHTML = `<b>${esc(meta.label)}${r.isNew ? '<span class="new">NOUVEAU</span>' : ''}</b>${esc(r.c)} · touche pour continuer`;
+    hint.innerHTML = `<b>${esc(meta.label)}${r.isNew ? '<span class="new">Nouveau</span>' : ''}</b>${esc(r.c)} · touche pour continuer`;
     if (!fx) return;
     const b = rv.getBoundingClientRect(), cx = b.left + b.width / 2, cy = b.top + b.height / 2;
     fxBurst(cx, cy, fx.colors, fx.n, 1 + tier * .12);
@@ -332,9 +366,13 @@ function revealStep(stage, set, data, results, i, close) {
     if (!flipped) {
       flipped = true; busy = true;
       fl.classList.add('flipped');
-      setTimeout(celebrate, 330);                      // l'effet part à mi-retournement
-      setTimeout(() => (busy = false), tier >= 3 ? 900 : 450);
-    } else revealStep(stage, set, data, results, i + 1, close);
+      setTimeout(celebrate, 360);                      // l'effet part à mi-retournement
+      setTimeout(() => (busy = false), tier >= 3 ? 900 : 480);
+    } else {
+      busy = true;
+      rv.classList.add('out');                          // la carte glisse hors de l'écran
+      setTimeout(() => revealStep(stage, set, data, results, i + 1, close), reduced() ? 10 : 300);
+    }
   };
 }
 
@@ -343,9 +381,9 @@ function summary(stage, set, data, results, close) {
   stage.onclick = null;
   stage.innerHTML = `${stageBg()}
     <div class="top"><span>${esc(set.n)}</span><button class="x" id="cl" aria-label="Fermer">✕</button></div>
-    <div class="sumgrid"><div class="grid">${results.map((x) => `<div class="slot ${rarityInfo(x.r).tier ? 't' + Math.min(7, rarityInfo(x.r).tier) : ''}">${cardHtml(x.card, x.r, { showName: false })}<div class="code">${x.isNew ? '<b style="color:var(--gold)">NEW</b> ' : ''}${esc(x.c)}</div></div>`).join('')}</div></div>
-    <div class="hint"><b>${results.filter((x) => x.isNew).length} nouvelle(s) carte(s)</b>Meilleure : ${esc(best.card.n)} (${esc(rarityInfo(best.r).label)})</div>
-    <div class="row" style="width:100%;max-width:520px;margin-top:10px">
+    <div class="sumgrid"><div class="grid">${results.map((x) => `<div class="slot ${rarityInfo(x.r).tier ? 't' + Math.min(7, rarityInfo(x.r).tier) : ''}">${cardHtml(x.card, x.r, { showName: false, gem: true })}<div class="code">${x.isNew ? '<b style="color:var(--brass-hi)">Nouveau</b> · ' : ''}${esc(x.c)}</div></div>`).join('')}</div></div>
+    <div class="hint" style="margin-top:18px"><b>${results.filter((x) => x.isNew).length} nouvelle(s) carte(s)</b>Meilleure : ${esc(best.card.n)} (${esc(rarityInfo(best.r).label)})</div>
+    <div class="row" style="width:100%;max-width:540px;margin-top:8px">
       <button class="btn ghost grow" id="back">Terminer</button>
       <button class="btn grow" id="again" ${S.boosters <= 0 ? 'disabled' : ''}>Rouvrir (${S.boosters})</button>
     </div>`;
@@ -357,20 +395,23 @@ function summary(stage, set, data, results, close) {
 // ---------- Collection ----------
 function renderCollection() {
   const sets = Object.keys(S.tot).filter((n) => Object.keys(S.col).some((k) => k.startsWith(n + '||')));
+  const uniq = Object.keys(S.col).length, total = Object.values(S.col).reduce((a, b) => a + b, 0);
   if (!sets.length) {
-    view.innerHTML = `<h1>Collection</h1><div class="empty">Ta collection est vide.<br>Ouvre un premier booster depuis l’onglet Extensions.</div><button class="btn" id="g">Voir les extensions</button>`;
+    view.innerHTML = `${banner([ICONIC.exodia, ICONIC.summonedSkull], 'Collection', 'Ta vitrine est vide pour l’instant.')}
+      <div class="empty">Ouvre un premier booster depuis l’onglet Extensions.</div><button class="btn" id="g">Voir les extensions</button>`;
     $('#g').onclick = () => go('sets');
+    startHero();
     return;
   }
   if (!colSet || !sets.includes(colSet)) colSet = sets[0];
   view.innerHTML = `
-    ${banner([ICONIC.exodia, ICONIC.summonedSkull], 'Collection', Object.keys(S.col).length + ' cartes différentes · ' + Object.values(S.col).reduce((a, b) => a + b, 0) + ' au total')}
+    ${banner([ICONIC.exodia, ICONIC.summonedSkull], 'Collection', `${uniq} cartes différentes, ${total} au total.`)}
     <div class="chips" id="setchips">${sets.map((n) => `<button class="chip ${n === colSet ? 'on' : ''}" data-n="${esc(n)}">${esc(n)}</button>`).join('')}</div>
     <div class="seg" id="own"><button data-o="all" class="${colFilter.own === 'all' ? 'on' : ''}">Toutes</button><button data-o="own" class="${colFilter.own === 'own' ? 'on' : ''}">Possédées</button><button data-o="miss" class="${colFilter.own === 'miss' ? 'on' : ''}">Manquantes</button></div>
     <div id="colbody"><div class="empty"><span class="spin"></span></div></div>`;
+  startHero();
   $('#setchips').onclick = (e) => { const n = e.target.dataset.n; if (n) { colSet = n; colFilter.rarity = 'all'; renderCollection(); } };
   $('#own').onclick = (e) => { const o = e.target.dataset.o; if (o) { colFilter.own = o; renderCollection(); } };
-  startHero();
   drawSetCollection();
 }
 
@@ -384,12 +425,13 @@ async function drawSetCollection() {
   let list = data.pool.filter((p) => (colFilter.rarity === 'all' || p.r === colFilter.rarity) &&
     (colFilter.own === 'all' || (colFilter.own === 'own') === !!S.col[key(p)]));
   body.innerHTML = `
-    <div class="row" style="margin-bottom:6px"><div class="grow"><b>${ownN} / ${data.pool.length}</b> <span class="sub">complétion</span><div class="bar"><i style="width:${(ownN / data.pool.length) * 100}%"></i></div></div></div>
+    <div class="compl"><b>${ownN} / ${data.pool.length}</b><span>cartes de l’extension</span></div>
+    <div class="bar" style="margin-bottom:14px"><i style="width:${(ownN / data.pool.length) * 100}%"></i></div>
     <div class="chips" id="rchips"><button class="chip ${colFilter.rarity === 'all' ? 'on' : ''}" data-r="all">Toutes raretés</button>${rars.map((r) => `<button class="chip ${colFilter.rarity === r ? 'on' : ''}" data-r="${esc(r)}">${esc(rarityInfo(r).label)}</button>`).join('')}</div>
     <div class="grid" id="grid">${list.map((p, i) => {
       const q = S.col[key(p)] || 0;
-      return `<button class="slot ${q ? '' : 'missing'}" data-i="${i}">
-        ${q > 1 ? `<span class="qty">x${q}</span>` : ''}${cardHtml(data.cards[p.i], p.r, { showName: false, badge: !!q })}<div class="code">${esc(p.c)}</div></button>`;
+      return `<button class="slot ${q ? '' : 'missing'}" data-i="${i}" aria-label="${esc(data.cards[p.i].n)}">
+        ${q > 1 ? `<span class="qty">x${q}</span>` : ''}${cardHtml(data.cards[p.i], p.r, { showName: false, gem: !!q })}<div class="code">${esc(p.c)}</div></button>`;
     }).join('')}</div>${list.length ? '' : '<div class="empty">Aucune carte avec ce filtre.</div>'}`;
   $('#rchips').onclick = (e) => { const r = e.target.dataset.r; if (r) { colFilter.rarity = r; drawSetCollection(); } };
   document.querySelectorAll('#grid .slot').forEach((b) => (b.onclick = () => {
@@ -398,38 +440,97 @@ async function drawSetCollection() {
   }));
 }
 
+// ---------- Fiche carte : objet 3D à faire tourner ----------
+function bindSpin(box, body, card, onStop) {
+  const st = { rx: 0, ry: 0, vx: 0, vy: 0, down: false, lx: 0, ly: 0, raf: 0, settling: false };
+  const apply = () => {
+    body.style.transform = `rotateX(${st.rx.toFixed(2)}deg) rotateY(${st.ry.toFixed(2)}deg)`;
+    const a = (st.ry * Math.PI) / 180;
+    card.style.setProperty('--mx', (50 + 42 * Math.sin(a)).toFixed(1) + '%');
+    card.style.setProperty('--my', (50 - st.rx * .9).toFixed(1) + '%');
+    card.style.setProperty('--ang', ((st.ry % 360) + 360) % 360 + 'deg');
+    const fl = box.nextElementSibling;
+    if (fl) fl.style.transform = `scaleX(${(.55 + .45 * Math.abs(Math.cos(a))).toFixed(2)})`;
+  };
+  const loop = () => {
+    if (!st.down) {
+      st.ry += st.vy; st.rx += st.vx; st.vy *= .94; st.vx *= .94;
+      if (Math.abs(st.vy) < .35 && Math.abs(st.vx) < .35) st.settling = true;
+      if (st.settling) {                                  // la carte revient à plat, face ou dos
+        const ty = Math.round(st.ry / 180) * 180;
+        st.ry += (ty - st.ry) * .12; st.rx += (0 - st.rx) * .12;
+        if (Math.abs(ty - st.ry) < .15 && Math.abs(st.rx) < .15) {
+          st.ry = ty; st.rx = 0; apply(); card.classList.remove('tilting'); st.raf = 0; return;
+        }
+      }
+    }
+    st.rx = Math.max(-70, Math.min(70, st.rx));
+    apply();
+    st.raf = requestAnimationFrame(loop);
+  };
+  const kick = () => { if (!st.raf) st.raf = requestAnimationFrame(loop); };
+  box.addEventListener('pointerdown', (e) => {
+    st.down = true; st.settling = false; st.lx = e.clientX; st.ly = e.clientY; st.vx = st.vy = 0;
+    card.classList.add('tilting');
+    try { box.setPointerCapture(e.pointerId); } catch {}
+    kick();
+  });
+  box.addEventListener('pointermove', (e) => {
+    if (!st.down) return;
+    const dx = e.clientX - st.lx, dy = e.clientY - st.ly;
+    st.lx = e.clientX; st.ly = e.clientY;
+    st.ry += dx * .55; st.rx -= dy * .4;
+    st.vy = dx * .55; st.vx = -dy * .4;
+  });
+  const up = () => { st.down = false; kick(); };
+  box.addEventListener('pointerup', up);
+  box.addEventListener('pointercancel', up);
+  let lastTap = 0;
+  box.addEventListener('dblclick', () => flipTo(180));
+  box.addEventListener('pointerdown', () => { const n = Date.now(); if (n - lastTap < 280) flipTo(180); lastTap = n; });
+  function flipTo(deg) { st.vy = deg > 0 ? 22 : -22; st.settling = false; card.classList.add('tilting'); kick(); }
+  return {
+    reset() { st.vy = 0; st.vx = 0; st.settling = true; st.ry = Math.round(st.ry / 360) * 360; card.classList.add('tilting'); kick(); },
+    flip() { flipTo(180); },
+    stop() { cancelAnimationFrame(st.raf); st.raf = 0; },
+  };
+}
+
 function openSheet(card, p, qty) {
   const ov = $('#overlay');
   const meta = rarityInfo(p.r);
   ov.hidden = false;
+  const front = qty ? cardHtml(card, p.r, { big: true }) : cardHtml(card, p.r, { big: true }).replace('class="card', 'style="filter:grayscale(1) brightness(.4)" class="card');
   ov.innerHTML = `<div class="sheet" id="sh">
-    <div id="shc">${qty ? cardHtml(card, p.r, { big: true }) : cardHtml(card, p.r, { big: true, badge: false }).replace('class="card', 'style="filter:grayscale(1) brightness(.4)" class="card')}</div>
-    <div class="info"><h3>${esc(card.n)}</h3>
-      <div class="kv"><span>${esc(meta.label)}</span><span>${esc(p.c)}</span><span>${qty ? 'x' + qty : 'Non possédée'}</span></div>
-      <div class="kv" style="margin-top:6px"><span>${esc(card.t)}</span>${card.e ? `<span>${esc(card.e)}</span>` : ''}${card.r ? `<span>${esc(card.r)}</span>` : ''}${card.l !== null ? `<span>Niv. ${card.l}</span>` : ''}${card.k !== null ? `<span>ATK ${card.k}</span>` : ''}${card.d !== null ? `<span>DEF ${card.d}</span>` : ''}</div>
-      ${card.x ? `<p class="desc">${esc(card.x)}</p>` : ''}
+    <div class="spinbox" id="sbox"><div class="body3d" id="b3d">
+      <div class="face front">${front}</div>
+      <div class="face back">${backHtml()}</div>
+    </div></div>
+    <div class="spinfloor" id="sfloor"></div>
+    <p class="spinhint">Fais glisser pour faire tourner la carte. Double tape pour la retourner.</p>
+    <div class="panel info"><h3>${esc(card.n)}</h3>
+      <div class="kv"><span class="r">${esc(meta.label)}</span><span>${esc(p.c)}</span><span>${qty ? 'x' + qty : 'Non possédée'}</span>${card.k !== null ? `<span>ATK ${card.k}</span>` : ''}${card.d !== null ? `<span>DEF ${card.d}</span>` : ''}</div>
     </div>
-    <button class="btn ghost sm" style="margin-top:14px" id="shx">Fermer</button></div>`;
-  bindTilt($('#shc'), 14);
-  const closeIt = () => { ov.hidden = true; ov.innerHTML = ''; };
+    <div class="row"><button class="btn ghost sm" id="sreset">Recentrer</button><button class="btn sm" id="shx">Fermer</button></div></div>`;
+  const spin = bindSpin($('#sbox'), $('#b3d'), $('.card', ov), null);
+  const closeIt = () => { spin.stop(); ov.hidden = true; ov.innerHTML = ''; };
   $('#shx').onclick = closeIt;
-  $('#sh').onclick = (e) => { if (e.target.id === 'sh') closeIt(); };
+  $('#sreset').onclick = () => spin.reset();
+  $('#sh').addEventListener('click', (e) => { if (e.target.id === 'sh') closeIt(); });
 }
 
 // ---------- Profil ----------
 function renderProfile() {
   const owned = Object.keys(S.col);
   const total = Object.values(S.col).reduce((a, b) => a + b, 0);
-  const byTier = {};
-  owned.forEach((k) => { const r = k.split('||')[2]; const t = rarityInfo(r).tier; byTier[t] = (byTier[t] || 0) + 1; });
   const rare = owned.filter((k) => rarityInfo(k.split('||')[2]).tier >= 4).length;
   view.innerHTML = `
     ${banner([ICONIC.redEyes, ICONIC.ra], 'Profil', 'Tout est enregistré sur cet appareil.')}
     <div class="stats">
-      <div class="stat"><b>${S.opened}</b><span>Boosters ouverts</span></div>
-      <div class="stat"><b>${total}</b><span>Cartes obtenues</span></div>
-      <div class="stat"><b>${owned.length}</b><span>Cartes uniques</span></div>
-      <div class="stat"><b>${rare}</b><span>Ultimate et plus</span></div>
+      <div class="panel stat"><b>${S.opened}</b><span>Boosters ouverts</span></div>
+      <div class="panel stat"><b>${total}</b><span>Cartes obtenues</span></div>
+      <div class="panel stat"><b>${owned.length}</b><span>Cartes uniques</span></div>
+      <div class="panel stat"><b>${rare}</b><span>Ultimate et au-dessus</span></div>
     </div>
     <h2>Sauvegarde</h2>
     <p class="sub">Exporte ta collection pour la garder ou la transférer sur un autre appareil.</p>
@@ -458,7 +559,7 @@ function renderProfile() {
     catch (err) { toast(err.message || 'Fichier invalide'); }
   };
   $('#rst').onclick = () => {
-    $('#rstbox').innerHTML = `<div class="err" style="margin-top:12px">Tout effacer ? Cette action est définitive.<div class="row" style="margin-top:10px"><button class="btn sm" id="yes" style="background:var(--danger);color:#fff">Oui, effacer</button><button class="btn ghost sm" id="no">Annuler</button></div></div>`;
+    $('#rstbox').innerHTML = `<div class="err" style="margin-top:12px">Tout effacer ? Cette action est définitive.<div class="row" style="margin-top:10px"><button class="btn sm" id="yes" style="background:var(--danger);color:#2b0a12">Oui, effacer</button><button class="btn ghost sm" id="no">Annuler</button></div></div>`;
     $('#no').onclick = () => ($('#rstbox').innerHTML = '');
     $('#yes').onclick = () => { try { localStorage.removeItem('duelpacks.save.v1'); } catch {} S = loadState(); setsCache = null; go('home'); toast('Collection réinitialisée'); };
   };

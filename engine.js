@@ -143,15 +143,43 @@ const ERA_D = { noDuplicates: true, slots: [
 export const PACK_OVERRIDES = {};
 export const DEFAULT_PACK = ERA_C;
 
-/** Choisit la composition de booster selon la date de sortie (AAAA-MM-JJ). */
-export function packConfigFor(setName, date) {
+// Nombre de cartes par booster.
+//  - Boosters principaux : 9 cartes (confirmé par Yugipedia et plusieurs guides).
+//  - Les autres formats ci-dessous viennent de ma connaissance et n'ont PAS pu être confirmés par les sources
+//    consultées : à corriger ici si besoin. Les noms sont testés en minuscules.
+export const PACK_SIZE_DEFAULT = 9;
+export const PACK_SIZE_RULES = [
+  [/duelist pack/, 5],
+  [/battle pack/, 5],
+  [/legendary duelists/, 5],
+];
+/** Surcharges exactes (nom de l'extension -> nombre de cartes). */
+export const PACK_SIZE_OVERRIDES = {};
+
+export function packSizeFor(setName, cardCount) {
+  if (PACK_SIZE_OVERRIDES[setName]) return PACK_SIZE_OVERRIDES[setName];
+  const n = String(setName || '').toLowerCase();
+  let size = PACK_SIZE_DEFAULT;
+  for (const [re, k] of PACK_SIZE_RULES) if (re.test(n)) { size = k; break; }
+  // une très petite extension ne peut pas donner plus de cartes qu'elle n'en contient
+  if (cardCount) size = Math.min(size, Math.max(3, Math.ceil(cardCount / 2)));
+  return size;
+}
+
+/** Ajuste le nombre de communes pour que le booster fasse `size` cartes. */
+function sized(cfg, size) {
+  const others = cfg.slots.filter((s) => !(Object.keys(s.weights).length === 1 && s.weights.common)).reduce((a, s) => a + s.count, 0);
+  const commons = Math.max(0, size - others);
+  return { ...cfg, slots: cfg.slots.map((s) => (Object.keys(s.weights).length === 1 && s.weights.common ? { ...s, count: commons } : s)) };
+}
+
+/** Choisit la composition de booster selon la date de sortie (AAAA-MM-JJ), le nom et la taille de l'extension. */
+export function packConfigFor(setName, date, cardCount) {
   if (PACK_OVERRIDES[setName]) return PACK_OVERRIDES[setName];
   const d = (date || '').slice(0, 10);
-  if (!d) return ERA_C;
-  if (d < '2008-09-01') return ERA_A;
-  if (d < '2016-01-01') return ERA_B;
-  if (d < '2020-04-01') return ERA_C;
-  return ERA_D;
+  let base = ERA_C;
+  if (d) base = d < '2008-09-01' ? ERA_A : d < '2016-01-01' ? ERA_B : d < '2020-04-01' ? ERA_C : ERA_D;
+  return sized(base, packSizeFor(setName, cardCount));
 }
 
 function pickWeighted(weights, rnd) {

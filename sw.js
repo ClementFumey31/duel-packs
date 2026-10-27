@@ -1,5 +1,5 @@
 // Service worker : l'app fonctionne hors-ligne, les artworks vus sont gardés en cache.
-const APP = 'duelpacks-app-v3';
+const APP = 'duelpacks-app-v4';
 const IMG = 'duelpacks-img-v1';
 const SHELL = ['./', 'index.html', 'style.css', 'app.js', 'engine.js', 'state.js', 'data.js',
   'manifest.webmanifest', 'icon-192.png', 'icon-512.png'];
@@ -18,7 +18,7 @@ self.addEventListener('fetch', (e) => {
   const req = e.request;
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
-  if (url.hostname === 'images.ygoprodeck.com') {
+  if (url.hostname === 'images.ygoprodeck.com' || url.hostname === 'fonts.gstatic.com' || url.hostname === 'fonts.googleapis.com') {
     e.respondWith(
       caches.open(IMG).then(async (c) => {
         const hit = await c.match(req);
