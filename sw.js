@@ -1,5 +1,5 @@
 // Service worker : l'app fonctionne hors-ligne, les artworks vus sont gardés en cache.
-const APP = 'duelpacks-app-v25';
+const APP = 'duelpacks-app-v26';
 const IMG = 'duelpacks-img-v1';
 const SHELL = ['./', 'index.html', 'style.css', 'app.js', 'engine.js', 'state.js', 'data.js', 'cardback.png',
   'manifest.webmanifest', 'icon-192.png', 'icon-512.png'];

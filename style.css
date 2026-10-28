@@ -954,3 +954,38 @@ body { background-size: auto, 288px 360px, auto; }
 .card[data-fx="gold"] .spk { animation-duration: 3.6s; }
 .card[data-fx="engraved"] .spk { opacity: .22; } .card[data-fx="engraved"] .spk::before { opacity: .16; } .card[data-fx="engraved"] .spk::after { opacity: .14; }
 .card[data-fx="engraved"] .fx::after { opacity: .78; }
+
+/* V14 — Secret Rare fidèle à une vraie carte : fines hachures holographiques diagonales + paillettes multicolores denses */
+.card[data-fx="engraved"] .fx img { filter: brightness(1.12) saturate(1.5) contrast(1.15); }
+.card[data-fx="engraved"] .fx::after { opacity: .62; background: linear-gradient(115deg, #ff3fa0, #ffb52e, #3dffa8, #35b6ff, #9a3dff, #ff3fa0); background-size: 260% 100%;
+  -webkit-mask-image: repeating-linear-gradient(58deg, #000 0 1.4px, transparent 1.4px 3.2px); mask-image: repeating-linear-gradient(58deg, #000 0 1.4px, transparent 1.4px 3.2px);
+  animation: foilmove 8s ease-in-out infinite alternate; }
+.card[data-fx="engraved"] .spk { left: 11.9%; right: 11.9%; top: 18.1%; bottom: 29.6%; inset: auto; left: 11.9%; right: 11.9%; top: 18.1%; bottom: 29.6%; opacity: .9; animation: none; background:
+  radial-gradient(circle, #fff 0 .7px, transparent 1.3px) 0 0 / 6px 7px,
+  radial-gradient(circle, #ff6fd0 0 .7px, transparent 1.3px) 3px 2px / 7px 6px,
+  radial-gradient(circle, #6fe8ff 0 .7px, transparent 1.3px) 1px 4px / 5px 8px; }
+.card[data-fx="engraved"] .spk::before { inset: 0; transform: none; opacity: .8; animation: none; background:
+  radial-gradient(circle, #ffe86f 0 .7px, transparent 1.3px) 2px 1px / 8px 5px,
+  radial-gradient(circle, #8fffb0 0 .7px, transparent 1.3px) 4px 5px / 6px 9px; }
+.card[data-fx="engraved"] .spk::after { inset: 0; transform: none; opacity: .6; animation: none; background:
+  radial-gradient(circle, #fff 0 1px, transparent 1.8px) 0 0 / 13px 11px,
+  radial-gradient(circle, #b98fff 0 .8px, transparent 1.5px) 6px 5px / 9px 12px; }
+.card[data-fx="engraved"] .fxn::after { opacity: .7; background: linear-gradient(115deg, #cfe6ff, #7fb8ff, #fff, #b9a8ff, #cfe6ff); background-size: 220% 100%; animation: foilmove 6s ease-in-out infinite alternate; }
+@keyframes hue { from { filter: hue-rotate(0deg); } to { filter: hue-rotate(360deg); } }
+.card[data-fx="engraved"] .fx::after { background: linear-gradient(115deg, #ff3fa0, #ffb52e 25%, #3dffa8 50%, #35b6ff 75%, #9a3dff); background-size: 100% 100%; opacity: .55; animation: hue 9s linear infinite; }
+.card[data-fx="engraved"] .spk { inset: 18.1% 11.9% 29.6% 11.9%; opacity: .75; }
+.card[data-fx="engraved"] .spk::before, .card[data-fx="engraved"] .spk::after { inset: 0; }
+.card[data-fx="engraved"] .spk::after { opacity: .35; }
+.card[data-fx="engraved"] .spk { background:
+  radial-gradient(circle, #fff 0 .5px, transparent 1px) 0 0 / 5px 6px,
+  radial-gradient(circle, #ff8ae0 0 .5px, transparent 1px) 2px 3px / 6px 5px,
+  radial-gradient(circle, #7aeaff 0 .5px, transparent 1px) 4px 1px / 7px 7px; }
+.card[data-fx="engraved"] .spk::before { opacity: .6; background:
+  radial-gradient(circle, #ffe97a 0 .5px, transparent 1px) 1px 2px / 7px 6px,
+  radial-gradient(circle, #9bffb8 0 .5px, transparent 1px) 3px 4px / 5px 8px; }
+.card[data-fx="engraved"] .spk::after { background: radial-gradient(circle, #fff 0 .8px, transparent 1.4px) 0 0 / 17px 13px; }
+.card[data-fx="engraved"] .fx, .card[data-fx="engraved"] .fxn { -webkit-mask: none; mask: none; animation: none; opacity: 1; }
+.card[data-fx="engraved"] .spk { inset: 0; }
+.card[data-fx="engraved"] .spk { inset: 18.1% 11.9% 29.6% 11.9%; -webkit-mask: none; mask: none; }
+.card[data-fx="engraved"] .fx::after { opacity: .38; }
+.card[data-fx="engraved"] .fxn::after { opacity: .4; }
