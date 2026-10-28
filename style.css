@@ -636,3 +636,29 @@ h2::before { width: 6px; height: 6px; }
 .kv span { border-radius: 6px; font-size: 11px; padding: 3px 9px; }
 .sheet .info h3 { font-size: 17px; }
 .pile { display: none !important; }
+
+/* =====================================================================
+   V8 : titres = seules les lettres brillent ; Secret = paillettes partout
+   Un filtre SVG ne garde que les pixels des lettres (sombres, ou clairs sur
+   les cadres Xyz/Lien) et les recolore ; la bande lumineuse les balaie.
+   ===================================================================== */
+.card[data-fx="foil_name"] .fxn img, .card[data-fx="engraved"] .fxn img { filter: url(#ltr-w); }
+.card[data-fx="foil_art_gloss"] .fxn img { filter: url(#ltr-g); }
+.card.lt[data-fx="foil_name"] .fxn img, .card.lt[data-fx="engraved"] .fxn img { filter: url(#ltl-w); }
+.card.lt[data-fx="foil_art_gloss"] .fxn img { filter: url(#ltl-g); }
+.card .fxn { opacity: 1; }
+.card[data-fx="foil_name"] .fxn, .card[data-fx="foil_art_gloss"] .fxn, .card[data-fx="engraved"] .fxn { -webkit-mask-size: 180% 100%; mask-size: 180% 100%; }
+
+/* Secret : fines paillettes sur toute la carte */
+.card[data-fx="engraved"] .spk { inset: 0; left: 0; right: 0; top: 0; bottom: 0; opacity: 1; animation: glit 1.2s ease-in-out infinite;
+  background: radial-gradient(circle, #fff 0 .8px, transparent 1.5px) 0 0 / 11px 13px, radial-gradient(circle, #fff 0 .6px, transparent 1.2px) 5px 7px / 9px 15px; }
+.card[data-fx="engraved"] .spk::before, .card[data-fx="engraved"] .spk::after { content: ""; position: absolute; inset: -10%; }
+.card[data-fx="engraved"] .spk::before { transform: rotate(11deg); animation: glit 1.9s ease-in-out -.6s infinite;
+  background: radial-gradient(circle, #fff6c8 0 1px, transparent 1.9px) 0 0 / 17px 19px, radial-gradient(circle, #c8f0ff 0 .8px, transparent 1.5px) 8px 9px / 13px 21px; }
+.card[data-fx="engraved"] .spk::after { transform: rotate(-17deg); animation: glit 2.6s ease-in-out -1.3s infinite;
+  background: radial-gradient(circle, #fff 0 1.4px, transparent 2.4px) 0 0 / 27px 29px, radial-gradient(circle, #ffd0f2 0 1.1px, transparent 2px) 13px 14px / 23px 31px; }
+@keyframes glit { 0%, 100% { opacity: .05; } 50% { opacity: 1; } }
+.card[data-fx="engraved"] .fx::after { opacity: .7; }
+.reveal.out .tiltwrap { transition-duration: .34s, .34s !important; }
+.flipper.enter { animation: deal .34s cubic-bezier(.2, .9, .25, 1.04); }
+.stage-bg img { will-change: transform; }

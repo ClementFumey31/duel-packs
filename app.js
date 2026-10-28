@@ -39,8 +39,8 @@ function cardHtml(card, rarity, { big = false, showName = true, badge = false, g
   const r = rarityInfo(rarity);
   const on = fx && r.fx !== 'none';
   const im = `<img src="${artUrl(card.a)}" alt="" decoding="async">`;
-  return `<div class="card ${big ? 'lg' : ''} ${on ? 'fxon' : ''} t${r.tier}" data-fx="${r.fx}">
-    <img src="${artUrl(card.a)}" alt="${esc(card.n)}" loading="lazy" decoding="async" onerror="this.parentNode.classList.add('noimg')">
+  return `<div class="card ${big ? 'lg' : ''} ${on ? 'fxon' : ''} ${/xyz|link/i.test(card.t || '') ? 'lt' : ''} t${r.tier}" data-fx="${r.fx}">
+    <img src="${artUrl(card.a)}" alt="${esc(card.n)}" loading="${big ? 'eager' : 'lazy'}" decoding="async" onerror="this.parentNode.classList.add('noimg')">
     ${on ? `<div class="fx">${im}</div><div class="fxn">${im}</div><div class="fxa">${im}</div><div class="spk"></div><div class="glare"></div>` : ''}
     ${gem && r.tier > 0 ? `<span class="gem t${Math.min(7, r.tier)}" title="${esc(r.label)}"></span>` : ''}
     ${badge && r.tier > 0 ? `<span class="gem t${Math.min(7, r.tier)}"></span>` : ''}
@@ -327,6 +327,7 @@ async function startOpen(set) {
     $('#hint', stage).innerHTML = '';
     // les meilleures cartes en dernier, comme dans un vrai booster
     results.sort((a, b) => rarityInfo(a.r).tier - rarityInfo(b.r).tier);
+    results.forEach((x) => { const im = new Image(); im.decoding = 'async'; im.src = artUrl(x.card.a); });   // préchargement : aucune attente à l'affichage
     const pk = $('#pack', stage);
     pk.classList.add('shake');                       // 1) le paquet tremble
     setTimeout(() => {                                // 2) le haut se déchire
@@ -346,45 +347,54 @@ function revealStep(stage, set, data, results, i, close) {
   const tier = meta.tier;
   const gc = GLOW[tier] || GLOW[2];
   const fx = TIER_FX[Math.min(tier, 7)];
-  const left = results.length - i - 1;
-  stage.innerHTML = `${stageBg()}
-    <div class="top"><span>${i + 1} / ${results.length}</span><div class="row"><button class="skip" id="skip">Tout voir</button><button class="x" id="cl" aria-label="Fermer">✕</button></div></div>
+  // Le décor (fond flouté, boutons, points) est créé une seule fois : seule la carte est remplacée,
+  // ce qui évite de recharger et recalculer le fond à chaque carte.
+  if (!stage.dataset.rv) {
+    stage.dataset.rv = '1';
+    stage.innerHTML = `${stageBg()}
+      <div class="top"><span id="cnt"></span><div class="row"><button class="skip" id="skip">Tout voir</button><button class="x" id="cl" aria-label="Fermer">✕</button></div></div>
+      <div id="rbox"></div>
+      <div class="hint" id="hint"></div>
+      <div class="dots" id="dots">${results.map(() => '<i></i>').join('')}</div>
+      <div class="flash" id="flash"></div>`;
+    $('#cl', stage).onclick = (e) => { e.stopPropagation(); close(); };
+    $('#skip', stage).onclick = (e) => { e.stopPropagation(); cur.skip = true; summary(stage, set, data, results, close); };
+  }
+  const cur = (stage._cur = { skip: false });
+  $('#cnt', stage).textContent = `${i + 1} / ${results.length}`;
+  [...$('#dots', stage).children].forEach((d, k) => d.classList.toggle('d', k < i));
+  $('#rbox', stage).innerHTML = `
     <div class="rays" id="rays" style="--gc:${gc}"></div>
     <div class="glow ${tier >= 2 ? 'on' : ''}" style="--gc:${gc}"></div>
     <div class="reveal ${tier >= 2 ? 'hot' : ''}" id="rv" style="--gc:${gc}">
-      <div class="pile">${'<i></i>'.repeat(Math.min(3, left))}</div>
       <div class="tiltwrap"><div class="flipper enter" id="fl">
         <div class="face front">${cardHtml(r.card, r.r, { big: true, fx: true })}</div>
       </div></div>
-    </div>
-    <div class="hint" id="hint"><b>&nbsp;</b>&nbsp;</div>
-    <div class="dots">${results.map((_, k) => `<i class="${k < i ? 'd' : ''}"></i>`).join('')}</div>
-    <div class="flash" id="flash"></div>`;
-  const rv = $('#rv', stage), fl = $('#fl', stage), hint = $('#hint', stage);
+    </div>`;
+  const rv = $('#rv', stage), hint = $('#hint', stage);
   bindTilt(rv, 16);
+  // nom, rareté et code visibles dès l'apparition de la carte
+  hint.innerHTML = `<b>${esc(r.card.n)}</b>${esc(meta.label)}${r.isNew ? '<span class="new">Nouveau</span>' : ''} · ${esc(r.c)}`;
 
   const celebrate = () => {
-    hint.innerHTML = `<b>${esc(meta.label)}${r.isNew ? '<span class="new">Nouveau</span>' : ''}</b>${esc(r.c)} · glisse la carte vers le haut`;
-    if (!fx) return;
+    if (!fx || cur.skip) return;
     const b = rv.getBoundingClientRect(), cx = b.left + b.width / 2, cy = b.top + b.height / 2;
     fxBurst(cx, cy, fx.colors, fx.n, 1 + tier * .12);
     if (tier >= 5) setTimeout(() => fxBurst(cx, cy, fx.colors, Math.round(fx.n / 2), 1.5), 260);
-    if (fx.flash) { const f = $('#flash', stage); f.style.setProperty('--fa', fx.flash); f.classList.add('go'); }
+    if (fx.flash) { const f = $('#flash', stage); f.classList.remove('go'); void f.offsetWidth; f.style.setProperty('--fa', fx.flash); f.classList.add('go'); }
     if (fx.rays) $('#rays', stage).classList.add('on');
     if (fx.ring) rv.classList.add('ring-go');
     if (fx.shake) { stage.classList.add('shake' + fx.shake); setTimeout(() => stage.classList.remove('shake' + fx.shake), 750); }
     if (fx.vib && navigator.vibrate) { try { navigator.vibrate(fx.vib); } catch {} }
   };
 
-  let busy = true;                                      // la carte apparaît, puis on peut la faire glisser
-  setTimeout(() => { celebrate(); busy = false; }, reduced() ? 10 : (tier >= 3 ? 700 : 450));
-  $('#cl', stage).onclick = (e) => { e.stopPropagation(); close(); };
-  $('#skip', stage).onclick = (e) => { e.stopPropagation(); summary(stage, set, data, results, close); };
+  let busy = true;                                      // bref délai pendant que la carte se pose
+  setTimeout(() => { if (stage._cur !== cur) return; celebrate(); busy = false; }, reduced() ? 10 : (tier >= 3 ? 320 : 180));
   const next = () => {
     if (busy) return;
     busy = true;
     rv.classList.add('out');                            // la carte part vers le haut, comme on la retire du paquet
-    setTimeout(() => revealStep(stage, set, data, results, i + 1, close), reduced() ? 10 : 460);
+    setTimeout(() => { if (stage._cur === cur) revealStep(stage, set, data, results, i + 1, close); }, reduced() ? 10 : 330);
   };
   let sy = null, swiped = false;
   stage.onpointerdown = (e) => { sy = e.clientY; swiped = false; };
