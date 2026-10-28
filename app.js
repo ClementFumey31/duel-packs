@@ -113,17 +113,9 @@ function renderHome() {
   view.innerHTML = `
     ${banner([ICONIC.blueEyes, ICONIC.darkMagician, ICONIC.redEyes, ICONIC.exodia, ICONIC.slifer, ICONIC.obelisk, ICONIC.ra], 'Duel Packs', 'Ouvre des boosters et complète tes extensions.')}
     <section class="panel vault">
-      <div class="ring">
-        <svg viewBox="0 0 120 120" aria-hidden="true">
-          <defs><linearGradient id="rg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f0d48a"/><stop offset="1" stop-color="#d9b45a"/></linearGradient></defs>
-          <circle class="track" cx="60" cy="60" r="52"/>
-          <circle class="prog" id="prog" cx="60" cy="60" r="52" stroke-dashoffset="326.7"/>
-        </svg>
-        <div class="ringtxt"><b id="n">0</b><span>sur ${MAX_BOOSTERS} boosters</span></div>
-      </div>
-      <p class="timer" id="timer"></p>
-      <div class="slots" id="pips" aria-hidden="true"></div>
-      <button class="btn" id="go">Ouvrir un booster</button>
+      <div class="vhead"><span class="vlabel">Boosters</span><span class="vcount"><b id="n">0</b> / ${MAX_BOOSTERS}</span></div>
+      <div class="stars" id="stars" aria-hidden="true"></div>
+      <div class="vfoot"><span class="timer" id="timer"></span><button class="btn sm" id="go">Ouvrir un booster</button></div>
     </section>
     <h2>Ma vitrine <span class="cnt">${S.fav.length} / 9</span></h2>
     <div class="vitrine" id="vit">${Array.from({ length: 9 }, (_, k) => {
@@ -151,8 +143,11 @@ function renderHome() {
     const v = tick();
     $('#n').textContent = v.boosters;
     const p = v.boosters >= MAX_BOOSTERS ? 1 : 1 - v.msToNext / REFILL_MS;
-    $('#prog').style.strokeDashoffset = (326.7 * (1 - p)).toFixed(1);
-    $('#pips').innerHTML = Array.from({ length: MAX_BOOSTERS }, (_, i) => `<i class="${i < v.boosters ? 'full' : ''}"></i>`).join('');
+    const STAR = '12,1.8 14.9,8.8 22.4,9.5 16.8,14.4 18.5,21.9 12,18 5.5,21.9 7.2,14.4 1.6,9.5 9.1,8.8';
+    $('#stars').innerHTML = Array.from({ length: MAX_BOOSTERS }, (_, k) => {
+      const f = k < v.boosters ? 1 : k === v.boosters ? p : 0;          // l'étoile en cours se remplit au fil des 10 minutes
+      return `<svg viewBox="0 0 24 24" class="star ${f >= 1 ? 'full' : ''}"><defs><linearGradient id="sg${k}" x1="0" x2="1"><stop offset="${f}" stop-color="#f6dc9a"/><stop offset="${f}" stop-color="#26262b"/></linearGradient></defs><polygon points="${STAR}" fill="url(#sg${k})" stroke="${f > 0 ? '#d9b45a' : '#4a4a52'}" stroke-width="1.1" stroke-linejoin="round"/></svg>`;
+    }).join('');
     $('#timer').innerHTML = v.boosters >= MAX_BOOSTERS ? 'Stock plein' : `Prochain booster dans <b>${fmt(v.msToNext)}</b>`;
   };
   draw();
@@ -342,7 +337,8 @@ async function startOpen(set) {
     const r = pk.getBoundingClientRect();
     fxBurst(r.left + r.width / 2, r.top + r.height * .13, ['#ffd86b', '#fff3c4', '#ffffff'], 80, 1.2);
     if (navigator.vibrate) { try { navigator.vibrate([20, 30, 40]); } catch {} }
-    setTimeout(() => revealStep(stage, set, data, results, 0, close), 1000);
+    setTimeout(() => stage.classList.add('packout'), 520);                  // le sachet vide s'enfonce et s'efface
+    setTimeout(() => revealStep(stage, set, data, results, 0, close), 860);   // la première carte monte à sa place
   };
   pk.addEventListener('pointerdown', (e) => {
     if (opening) return;
@@ -389,6 +385,7 @@ function revealStep(stage, set, data, results, i, close) {
   // ce qui évite de recharger et recalculer le fond à chaque carte.
   if (!stage.dataset.rv) {
     stage.dataset.rv = '1';
+    stage.classList.remove('packout');
     stage.innerHTML = `${stageBg()}
       <div class="top"><span id="cnt"></span><div class="row"><button class="skip" id="skip">Tout voir</button><button class="x" id="cl" aria-label="Fermer">✕</button></div></div>
       <div id="rbox"></div>
@@ -405,14 +402,14 @@ function revealStep(stage, set, data, results, i, close) {
     <div class="rays" id="rays" style="--gc:${gc}"></div>
     <div class="glow ${tier >= 2 ? 'on' : ''}" style="--gc:${gc}"></div>
     <div class="reveal ${tier >= 2 ? 'hot' : ''}" id="rv" style="--gc:${gc}">
-      <div class="tiltwrap"><div class="flipper enter" id="fl">
-        <div class="face front">${cardHtml(r.card, r.r, { big: true, fx: true })}</div>${EDGES}
+      <div class="tiltwrap"><div class="flipper enter ${i === 0 ? 'first' : ''}" id="fl">
+        <div class="face front">${cardHtml(r.card, r.r, { big: true, fx: true })}</div>
       </div></div>
     </div>`;
   const rv = $('#rv', stage), hint = $('#hint', stage);
   bindTilt(rv, 16);
   // nom, rareté et code visibles dès l'apparition de la carte
-  hint.innerHTML = `<div class="rarbadge t${Math.min(7, tier)}" style="--gc:${gc}">${esc(meta.label)}</div><span class="cardname">${esc(r.card.n)}${r.isNew ? '<span class="new">Nouveau</span>' : ''}</span><span class="cardsub">${esc(r.c)}</span>`;
+  hint.innerHTML = `<div class="rarbadge t${Math.min(7, tier)}" data-fx="${meta.fx}" style="--gc:${gc}">${esc(meta.label)}</div><span class="cardname">${esc(r.card.n)}${r.isNew ? '<span class="new">Nouveau</span>' : ''}</span><span class="cardsub">${esc(r.c)}</span>`;
 
   const celebrate = () => {
     if (!fx || cur.skip) return;
