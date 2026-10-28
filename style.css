@@ -177,48 +177,6 @@ h2::after { content: ""; flex: 1; height: 1px; background: linear-gradient(90deg
 .card .cname { display: none; position: absolute; inset: 0; padding: 12% 10%; font-family: var(--display); font-size: 11px; background: linear-gradient(160deg, #8c1626, #1a060b); z-index: 1; align-items: flex-end; }
 .card.lg .cname { font-size: 18px; }
 .card.noimg .cname { display: flex; }
-.card .fx, .card .fxn, .card .spk, .card .glare { position: absolute; pointer-events: none; opacity: 0; }
-.card .fx, .card .fxn { z-index: 4; transition: opacity .25s; }
-.card .fx { left: 11.9%; right: 11.9%; top: 18.1%; bottom: 29.6%; }
-.card .fxn { left: 6%; right: 6%; top: 3.6%; height: 6.6%; mix-blend-mode: color-dodge; }
-.card.noimg .fx, .card.noimg .fxn, .card.noimg .spk { display: none; }
-.card .glare { inset: 0; z-index: 7; mix-blend-mode: soft-light; background: radial-gradient(circle at var(--mx) var(--my), #fffffff0, transparent 46%); }
-.reveal .card .glare, .sheet .card .glare { opacity: .65; }
-
-.card[data-fx="foil_name"] .fxn { opacity: .55; background: linear-gradient(100deg, #b9b9c9, #fff 45%, #b9b9c9 65%); background-size: 220% 100%; background-position: var(--mx) 0; }
-.card[data-fx="foil_art"] .fxn, .card[data-fx="foil_art_gloss"] .fxn, .card[data-fx="embossed"] .fxn { opacity: .6; background: linear-gradient(100deg, #c4152a, #ffe38a 45%, #c4152a 65%); background-size: 220% 100%; background-position: var(--mx) 0; }
-.card[data-fx="engraved"] .fxn, .card[data-fx="mosaic"] .fxn, .card[data-fx="shatter"] .fxn, .card[data-fx="full_foil"] .fxn { opacity: .5; background: linear-gradient(100deg, #ff6bd6, #ffd86b, #6bffb8, #6bb8ff); background-size: 220% 100%; background-position: var(--mx) 0; }
-.card[data-fx="ghost"] .fxn { opacity: .5; background: linear-gradient(100deg, #cfe8ff, #fff, #cfe8ff); }
-.card[data-fx="foil_art"] .fx { opacity: .55; mix-blend-mode: color-dodge; background: linear-gradient(115deg, transparent 15%, #ff6bd699 32%, #ffd86b99 44%, #6bffb899 56%, #6bb8ff99 68%, transparent 85%); background-size: 260% 260%; background-position: var(--mx) var(--my); }
-.card[data-fx="foil_art_gloss"] .fx { opacity: .6; mix-blend-mode: color-dodge; background: radial-gradient(circle at var(--mx) var(--my), #fff 0, #ffffff66 14%, transparent 42%), linear-gradient(115deg, #ff6bd677, #ffd86b77, #6bffb877, #6bb8ff77); }
-.card[data-fx="embossed"] .fx { opacity: .55; mix-blend-mode: overlay; background: repeating-linear-gradient(135deg, #fff9 0 2px, #0006 2px 4px), radial-gradient(circle at var(--mx) var(--my), #fff, transparent 50%); }
-.card[data-fx="engraved"] .fx { opacity: .6; mix-blend-mode: color-dodge; background: repeating-linear-gradient(45deg, #0000 0 5px, #ffffff55 5px 6px), conic-gradient(from var(--ang, 200deg) at var(--mx) var(--my), #ff6bd6bb, #ffd86bbb, #6bffb8bb, #6bb8ffbb, #b06bffbb, #ff6bd6bb); }
-.card[data-fx="mosaic"] .fx { opacity: .6; mix-blend-mode: color-dodge; background: repeating-conic-gradient(#ff6bd677 0 25%, #6bb8ff77 0 50%) 0 0 / 14px 14px, radial-gradient(circle at var(--mx) var(--my), #fff9, transparent 50%); }
-.card[data-fx="shatter"] .fx { opacity: .6; mix-blend-mode: color-dodge; background: conic-gradient(from 20deg at var(--mx) var(--my), #fff6, #6bb8ff66, #fff6, #ff6bd666, #fff6, #6bffb866, #fff6); }
-.card[data-fx="ghost"] .fx { opacity: 1; backdrop-filter: grayscale(1) contrast(1.1) brightness(1.35); mix-blend-mode: screen; background: radial-gradient(circle at var(--mx) var(--my), #ffffffcc, #cfe8ff44 40%, transparent 70%); }
-.card[data-fx="full_foil"] .fx { left: 0; right: 0; top: 0; bottom: 0; opacity: .5; mix-blend-mode: color-dodge; background: conic-gradient(from var(--ang, 200deg) at var(--mx) var(--my), #ff6bd6, #ffd86b, #6bffb8, #6bb8ff, #b06bff, #ff6bd6); }
-.card[data-fx="full_foil"]::after, .card[data-fx="grandmaster"]::after { content: ""; position: absolute; inset: 0; z-index: 5; pointer-events: none; background: radial-gradient(circle at var(--mx) var(--my), #fffa, transparent 36%); mix-blend-mode: overlay; }
-.card[data-fx="grandmaster"] .fx { left: 0; right: 0; top: 0; bottom: 0; opacity: .75; mix-blend-mode: color-dodge; background: conic-gradient(from var(--ang, 200deg) at var(--mx) var(--my), #ff6bd6, #ffd86b, #6bffb8, #6bb8ff, #b06bff, #ff6bd6), repeating-linear-gradient(60deg, #fff0 0 7px, #ffffff44 7px 8px); }
-.card[data-fx="grandmaster"] .fxn { opacity: .6; background: linear-gradient(100deg, #ffe38a, #ff6bd6, #6bffb8, #6bb8ff); background-size: 220% 100%; background-position: var(--mx) 0; }
-.card[data-fx="grandmaster"]::before { content: ""; position: absolute; inset: 0; z-index: 6; pointer-events: none; border-radius: inherit; padding: 2.4%; opacity: .9; background: repeating-linear-gradient(90deg, #ffe38a 0 5px, #8a5a10 5px 9px, #ffe38a 9px 11px); -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0); }
-.slot .card .fx, .mini .card .fx { opacity: .45; }
-.slot.missing .card .fx, .slot.missing .card .fxn, .slot.missing .card .spk, .slot.missing .card .glare { display: none; }
-
-/* étincelles */
-.card .spk { z-index: 5; mix-blend-mode: screen; left: 11.9%; right: 11.9%; top: 18.1%; bottom: 29.6%;
-  background: radial-gradient(circle at 12% 22%, #fff 0 1.5px, transparent 2.6px), radial-gradient(circle at 78% 15%, #fff 0 1.2px, transparent 2.3px), radial-gradient(circle at 40% 62%, #fff 0 1.9px, transparent 3.1px), radial-gradient(circle at 88% 70%, #fff 0 1.3px, transparent 2.4px), radial-gradient(circle at 25% 88%, #fff 0 1.5px, transparent 2.6px), radial-gradient(circle at 62% 35%, #fff 0 1.1px, transparent 2.1px), radial-gradient(circle at 55% 80%, #fff 0 1.4px, transparent 2.5px), radial-gradient(circle at 8% 55%, #fff 0 1.2px, transparent 2.2px); }
-@keyframes twinkle { 0%, 100% { opacity: .1; transform: scale(1) rotate(0); } 50% { opacity: 1; transform: scale(1.05) rotate(4deg); } }
-.card[data-fx="foil_art"] .spk { opacity: .5; animation: twinkle 3.2s ease-in-out infinite; }
-.card[data-fx="foil_art_gloss"] .spk, .card[data-fx="embossed"] .spk, .card[data-fx="engraved"] .spk, .card[data-fx="mosaic"] .spk, .card[data-fx="shatter"] .spk { opacity: .85; animation: twinkle 2.2s ease-in-out infinite; }
-.card[data-fx="full_foil"] .spk, .card[data-fx="grandmaster"] .spk { left: 0; right: 0; top: 0; bottom: 0; opacity: .9; animation: twinkle 1.7s ease-in-out infinite; }
-.card[data-fx="ghost"] .spk { opacity: 1; filter: blur(7px); animation: mist 5s ease-in-out infinite alternate; background: radial-gradient(ellipse at 30% 65%, #ffffffcc, transparent 55%), radial-gradient(ellipse at 72% 28%, #cfe8ffcc, transparent 55%); }
-@keyframes mist { from { transform: translate(-7%, 3%) scale(1.1); } to { transform: translate(7%, -3%) scale(1.3); } }
-.slot .card .spk, .mini .card .spk { animation: none; }
-@keyframes namesweep { from { background-position: 0% 0; } to { background-position: 100% 0; } }
-@keyframes drift { 0% { --mx: 15%; --my: 20%; --ang: 120deg; } 50% { --mx: 85%; --my: 40%; --ang: 240deg; } 100% { --mx: 30%; --my: 85%; --ang: 360deg; } }
-.reveal .card:not(.tilting), .sheet .card:not(.tilting) { animation: drift 6s ease-in-out infinite alternate; }
-.reveal .card:not(.tilting)[data-fx="foil_name"] .fxn, .sheet .card:not(.tilting)[data-fx="foil_name"] .fxn { animation: namesweep 2.6s ease-in-out infinite alternate; }
-
 /* ---------- Dos de carte ----------
    Si un fichier "cardback.png" est déposé à côté de index.html, il remplace ce dessin. */
 .cback { position: absolute; inset: 0; border-radius: 3.2% / 2.2%; overflow: hidden; background: #1a0c05; border: 5px solid #c9a24a; box-shadow: inset 0 0 0 2px #000a; }
@@ -413,9 +371,7 @@ h2::after { background: linear-gradient(90deg, #ff2a3d88, transparent); box-shad
 .pk::after { animation: sheen 3.6s infinite; }
 
 .reveal .card, .sheet .card { animation: none !important; }
-.reveal .flipper.flipped .card:not(.tilting) { animation: drift 9s ease-in-out infinite alternate !important; }
 .reveal .card .glare, .sheet .card .glare { opacity: .5; }
-.card[data-fx="ghost"] .fx { backdrop-filter: none; background: radial-gradient(circle at var(--mx) var(--my), #ffffffcc, #cfe8ff55 40%, transparent 70%); }
 .cback { background: #0b0305; border: 5px solid #8c1626; box-shadow: inset 0 0 0 2px #000a, 0 0 18px #ff2a3d66; }
 .cback .cb-art { background: radial-gradient(circle, #ff2a3d 0 4%, #8c1626 5% 9%, transparent 10%), repeating-radial-gradient(circle at 50% 50%, #5a0c17 0 2.2%, #12050a 2.2% 4.4%), radial-gradient(ellipse, #3a0a12, #0b0305 75%); }
 .pile i { border-color: #8c1626; background: radial-gradient(circle, #ff2a3d 0 5%, #3a0a12 6%, #0b0305 80%); }
@@ -562,4 +518,121 @@ h2::after { background: linear-gradient(90deg, var(--gold), transparent); box-sh
 .flipper.enter { animation: deal .5s cubic-bezier(.2, .9, .25, 1.04); }
 @keyframes deal { from { transform: translate3d(0, 70px, -40px) scale(.9); opacity: 0; } to { transform: none; opacity: 1; } }
 .face.front { transform: none; }
-.reveal .flipper .card:not(.tilting) { animation: drift 9s ease-in-out infinite alternate !important; }
+
+/* =====================================================================
+   V7 : EFFETS DE RARETÉ (sans mélange de couches, stables en 3D)
+   Chaque effet est une copie éclairée de l'image de la carte, découpée
+   par un masque en forme de bande lumineuse qui balaie la zone concernée.
+     Rare : titre brillant         Super Rare : image brillante
+     Ultra Rare : image + titre    Secret Rare : image + titre scintillants
+     Ultimate : toute la carte, relief mat brillant
+     Ghost : image grisée fantomatique brillante
+   ===================================================================== */
+.card { isolation: isolate; transform: translateZ(0); }
+.card .fx, .card .fxn, .card .fxa, .card .spk, .card .glare { position: absolute; pointer-events: none; overflow: hidden; opacity: 0; display: none; }
+.card.fxon .fx, .card.fxon .fxn, .card.fxon .fxa, .card.fxon .spk, .card.fxon .glare { display: block; }
+.card .fx { left: 11.9%; right: 11.9%; top: 18.1%; bottom: 29.6%; z-index: 4; }
+.card .fxn { left: 6%; right: 6%; top: 3.6%; height: 6.6%; z-index: 4; }
+.card .fxa { inset: 0; z-index: 4; border-radius: inherit; }
+.card .fx img, .card .fxn img, .card .fxa img { position: absolute; max-width: none; object-fit: fill; }
+.card .fx img { width: 131.2%; height: 191.2%; left: -15.62%; top: -34.6%; }
+.card .fxn img { width: 113.6%; height: 1515%; left: -6.82%; top: -54.55%; }
+.card .fxa img { width: 100%; height: 100%; left: 0; top: 0; }
+.card .glare { inset: 0; z-index: 7; background: radial-gradient(circle at var(--mx) var(--my), #ffffff40, transparent 42%); }
+.card .spk { left: 11.9%; right: 11.9%; top: 3.6%; bottom: 29.6%; z-index: 6;
+  background: radial-gradient(circle at 12% 30%, #fff 0 1.6px, transparent 3px), radial-gradient(circle at 78% 22%, #fff 0 1.3px, transparent 2.6px), radial-gradient(circle at 40% 62%, #fff 0 2px, transparent 3.4px), radial-gradient(circle at 88% 72%, #fff 0 1.4px, transparent 2.6px), radial-gradient(circle at 25% 90%, #fff 0 1.6px, transparent 3px), radial-gradient(circle at 62% 40%, #fff 0 1.2px, transparent 2.4px), radial-gradient(circle at 55% 82%, #fff 0 1.5px, transparent 2.8px), radial-gradient(circle at 8% 60%, #fff 0 1.2px, transparent 2.4px), radial-gradient(circle at 70% 8%, #fff 0 1.8px, transparent 3.2px), radial-gradient(circle at 30% 12%, #fff 0 1.4px, transparent 2.6px); }
+
+/* bande lumineuse : le masque se déplace (animation au repos, position du doigt au toucher) */
+.card[data-fx="foil_name"] .fxn, .card[data-fx="foil_art"] .fx, .card[data-fx="parallel"] .fx,
+.card[data-fx="foil_art_gloss"] .fx, .card[data-fx="foil_art_gloss"] .fxn,
+.card[data-fx="mosaic"] .fx, .card[data-fx="shatter"] .fx,
+.card[data-fx="engraved"] .fx, .card[data-fx="engraved"] .fxn,
+.card[data-fx="full_foil"] .fx, .card[data-fx="grandmaster"] .fx {
+  opacity: 1;
+  -webkit-mask-image: linear-gradient(105deg, transparent 38%, #000 50%, transparent 62%); mask-image: linear-gradient(105deg, transparent 38%, #000 50%, transparent 62%);
+  -webkit-mask-size: 260% 100%; mask-size: 260% 100%; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+  animation: sweep 3.6s ease-in-out infinite;
+}
+.card[data-fx="foil_art_gloss"] .fxn, .card[data-fx="engraved"] .fxn { animation-delay: .25s; }
+@keyframes sweep { 0% { -webkit-mask-position: 0% 0; mask-position: 0% 0; } 65%, 100% { -webkit-mask-position: 100% 0; mask-position: 100% 0; } }
+.card.tilting .fx, .card.tilting .fxn { animation: none !important; -webkit-mask-position: var(--mx) 0; mask-position: var(--mx) 0; }
+
+/* Rare : titre argenté brillant */
+.card[data-fx="foil_name"] .fxn img { filter: brightness(2.4) contrast(1.1) saturate(.4); }
+/* Super Rare : image brillante */
+.card[data-fx="foil_art"] .fx img, .card[data-fx="parallel"] .fx img { filter: brightness(1.9) saturate(1.7) contrast(1.05); }
+/* Ultra Rare / or / platine : image brillante + titre doré */
+.card[data-fx="foil_art_gloss"] .fx img, .card[data-fx="mosaic"] .fx img, .card[data-fx="shatter"] .fx img { filter: brightness(2.1) saturate(1.9) contrast(1.08); }
+.card[data-fx="foil_art_gloss"] .fxn img { filter: sepia(1) saturate(4) brightness(2) hue-rotate(-8deg); }
+/* Secret Rare : image et titre prismatiques + étincelles */
+.card[data-fx="engraved"] .fx img { filter: brightness(2) saturate(2.2) contrast(1.1) hue-rotate(18deg); }
+.card[data-fx="engraved"] .fxn img { filter: brightness(2.4) saturate(2.4) hue-rotate(-30deg); }
+.card[data-fx="engraved"] .fx::after { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(45deg, #0000 0 4px, #ffffff26 4px 5px), linear-gradient(115deg, #ff6bd644, #ffd86b44, #6bffb844, #6bb8ff44); }
+.card[data-fx="engraved"] .spk { opacity: .9; animation: twinkle 1.9s ease-in-out infinite; }
+@keyframes twinkle { 0%, 100% { opacity: .08; transform: scale(.96); } 50% { opacity: 1; transform: scale(1.04); } }
+.card[data-fx="shatter"] .fx::after, .card[data-fx="mosaic"] .fx::after { content: ""; position: absolute; inset: 0; background: repeating-conic-gradient(#ff6bd633 0 25%, #6bb8ff33 0 50%) 0 0 / 14px 14px; }
+/* Ultimate : toute la surface, relief mat brillant */
+.card[data-fx="embossed"] .fxa { opacity: .42; }
+.card[data-fx="embossed"] .fxa img { filter: contrast(1.45) brightness(1.12) saturate(1.25); }
+.card[data-fx="embossed"] .fxa::after { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(135deg, #ffffff30 0 1px, #00000026 1px 3px); }
+.card[data-fx="embossed"] .fxa::before { content: ""; position: absolute; inset: 0; z-index: 1; background: linear-gradient(105deg, transparent 38%, #ffffff66 50%, transparent 62%) 0 0 / 260% 100% no-repeat; animation: sweepbg 3.6s ease-in-out infinite; }
+@keyframes sweepbg { 0% { background-position: 0% 0; } 65%, 100% { background-position: 100% 0; } }
+.card.tilting[data-fx="embossed"] .fxa::before { animation: none; background-position: var(--mx) 0; }
+.card[data-fx="embossed"] .glare { opacity: .6; }
+/* Ghost : image grisée, fantomatique, brillante */
+.card[data-fx="ghost"] .fx { opacity: .95; }
+.card[data-fx="ghost"] .fx img { filter: grayscale(1) brightness(1.6) contrast(1.1); }
+.card[data-fx="ghost"] .fx::after { content: ""; position: absolute; inset: 0; background: radial-gradient(ellipse at 30% 70%, #ffffff99, transparent 60%), radial-gradient(ellipse at 75% 25%, #cfe8ff99, transparent 60%); animation: breathe 4s ease-in-out infinite alternate; }
+@keyframes breathe { from { opacity: .25; } to { opacity: .95; } }
+/* Starlight, Collector, Grand Master : toute la carte */
+.card[data-fx="full_foil"] .fx img, .card[data-fx="grandmaster"] .fx img { filter: brightness(2.1) saturate(2) contrast(1.1); }
+.card[data-fx="full_foil"] .fxa, .card[data-fx="grandmaster"] .fxa { opacity: .5; background: linear-gradient(115deg, #ff6bd6, #ffd86b, #6bffb8, #6bb8ff, #b06bff, #ff6bd6) 0 0 / 300% 100%; animation: sweepbg 5s linear infinite; }
+.card[data-fx="grandmaster"] .fxa { background-image: linear-gradient(115deg, #ffe38a, #ff9f1c, #fff3c4, #ffe38a); }
+.card[data-fx="full_foil"] .fxa img, .card[data-fx="grandmaster"] .fxa img { display: none; }
+.card[data-fx="full_foil"] .spk, .card[data-fx="grandmaster"] .spk { opacity: .9; animation: twinkle 1.7s ease-in-out infinite; }
+/* hors fiche : pas d'effet animé */
+.card:not(.fxon) .fx, .card:not(.fxon) .fxn, .card:not(.fxon) .fxa, .card:not(.fxon) .spk, .card:not(.fxon) .glare { display: none; }
+.reveal .card .glare, .sheet .card .glare { opacity: 1; }
+
+/* =====================================================================
+   V7 : DESIGN PLUS FIN : contours continus, polices réduites
+   ===================================================================== */
+body { font-size: 14px; }
+.panel, .tile-img, .search, .seg, .stat, .sheet .info, .err, .btn, .chip, #dock, .x, .skip, .kv span { clip-path: none !important; }
+.panel, .tile-img, .stat, .sheet .info { border: 1px solid transparent; border-radius: 10px; background: linear-gradient(180deg, #170709, #070203) padding-box, linear-gradient(135deg, #f0d48a, #7a5a1c 45%, #d9b45a) border-box; }
+.panel { box-shadow: 0 14px 34px #000a; }
+.tile-img { background: radial-gradient(80% 60% at 50% 30%, #3a0a12, #0b0305 75%) padding-box, linear-gradient(135deg, #f0d48a, #7a5a1c 45%, #d9b45a) border-box; }
+.search, .seg { border: 1px solid #d9b45a66; border-radius: 8px; background: #0b0305; }
+.search { padding: 10px 14px; font-size: 13px; }
+.seg button { border-radius: 6px; font-size: 11px; letter-spacing: .08em; padding: 8px; font-weight: 600; text-transform: uppercase; }
+.seg button.on { background: #7a0f1c; box-shadow: inset 0 0 0 1px #ff2a3d88; }
+.chip { border-radius: 6px; border: 1px solid #d9b45a55; padding: 6px 12px; font-size: 11px; letter-spacing: .05em; font-weight: 600; background: #0b0305; }
+.chip.on { background: #7a0f1c; border-color: #ff2a3d; }
+.btn { border-radius: 6px; border: 1px solid #e8c874; padding: 12px 20px; font-size: 12px; font-weight: 700; letter-spacing: .16em; background: linear-gradient(180deg, #c4152a, #6a0c18); box-shadow: 0 0 0 1px #00000088, 0 6px 18px #ff2a3d33, inset 0 1px 0 #ffffff40; }
+.btn.ghost { background: #0b0305; border: 1px solid #d9b45a99; box-shadow: none; color: #f0d48a; }
+.btn.sm { padding: 9px 14px; font-size: 11px; }
+#dock { border-radius: 14px; border: 1px solid #d9b45a66; padding: 5px; background: linear-gradient(180deg, #170709f2, #050102f5); box-shadow: 0 12px 30px #000c; }
+#dock::before { display: none; }
+#dock button { border-radius: 10px; font-size: 9px; font-weight: 600; letter-spacing: .06em; }
+#dock button.on { background: #7a0f1c66; box-shadow: inset 0 0 0 1px #ff2a3d66; }
+#dock button.on::after { display: none; }
+.hero { height: calc(200px + var(--safe-t)); }
+.hero-txt h1 { font-size: 24px; letter-spacing: .08em; font-weight: 700; }
+.hero-txt p { font-size: 13px; }
+h2 { font-size: 12px; letter-spacing: .16em; font-weight: 600; margin: 24px 0 10px; }
+h2::before { width: 6px; height: 6px; }
+.ringtxt b { font-size: 44px; font-weight: 700; }
+.ringtxt span { font-size: 9px; }
+.compl b, .stat b { font-size: 24px; font-weight: 700; }
+.stat span { font-size: 10px; }
+.tile-name { font-size: 12px; font-weight: 600; }
+.tile-meta { font-size: 11px; }
+.tile-img span { font-size: 16px; }
+.hint b { font-size: 16px; }
+.hint { font-size: 12px; }
+.x, .skip { border: 1px solid #d9b45a88; border-radius: 8px; }
+.x { width: 36px; height: 36px; font-size: 14px; }
+.skip { height: 36px; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; }
+.kv span { border-radius: 6px; font-size: 11px; padding: 3px 9px; }
+.sheet .info h3 { font-size: 17px; }
+.pile { display: none !important; }

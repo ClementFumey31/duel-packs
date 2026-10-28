@@ -35,11 +35,13 @@ const fmt = (ms) => {
 };
 
 // ---------- Carte (composant) ----------
-function cardHtml(card, rarity, { big = false, showName = true, badge = false, gem = false } = {}) {
+function cardHtml(card, rarity, { big = false, showName = true, badge = false, gem = false, fx = false } = {}) {
   const r = rarityInfo(rarity);
-  return `<div class="card ${big ? 'lg' : ''} t${r.tier}" data-fx="${r.fx}">
+  const on = fx && r.fx !== 'none';
+  const im = `<img src="${artUrl(card.a)}" alt="" decoding="async">`;
+  return `<div class="card ${big ? 'lg' : ''} ${on ? 'fxon' : ''} t${r.tier}" data-fx="${r.fx}">
     <img src="${artUrl(card.a)}" alt="${esc(card.n)}" loading="lazy" decoding="async" onerror="this.parentNode.classList.add('noimg')">
-    <div class="fx"></div><div class="fxn"></div><div class="spk"></div><div class="glare"></div>
+    ${on ? `<div class="fx">${im}</div><div class="fxn">${im}</div><div class="fxa">${im}</div><div class="spk"></div><div class="glare"></div>` : ''}
     ${gem && r.tier > 0 ? `<span class="gem t${Math.min(7, r.tier)}" title="${esc(r.label)}"></span>` : ''}
     ${badge && r.tier > 0 ? `<span class="gem t${Math.min(7, r.tier)}"></span>` : ''}
     ${showName ? `<div class="cname">${esc(card.n)}</div>` : '<div class="cname"></div>'}
@@ -352,7 +354,7 @@ function revealStep(stage, set, data, results, i, close) {
     <div class="reveal ${tier >= 2 ? 'hot' : ''}" id="rv" style="--gc:${gc}">
       <div class="pile">${'<i></i>'.repeat(Math.min(3, left))}</div>
       <div class="tiltwrap"><div class="flipper enter" id="fl">
-        <div class="face front">${cardHtml(r.card, r.r, { big: true })}</div>
+        <div class="face front">${cardHtml(r.card, r.r, { big: true, fx: true })}</div>
       </div></div>
     </div>
     <div class="hint" id="hint"><b>&nbsp;</b>&nbsp;</div>
@@ -401,7 +403,7 @@ function summary(stage, set, data, results, close) {
   stage.onclick = null;
   stage.innerHTML = `${stageBg()}
     <div class="top"><span>${esc(set.n)}</span><button class="x" id="cl" aria-label="Fermer">✕</button></div>
-    <div class="sumgrid"><div class="grid">${results.map((x) => `<div class="slot ${rarityInfo(x.r).tier ? 't' + Math.min(7, rarityInfo(x.r).tier) : ''}">${cardHtml(x.card, x.r, { showName: false, gem: true })}<div class="code">${x.isNew ? '<b style="color:var(--brass-hi)">Nouveau</b> · ' : ''}${esc(x.c)}</div></div>`).join('')}</div></div>
+    <div class="sumgrid"><div class="grid">${results.map((x) => `<div class="slot ${rarityInfo(x.r).tier ? 't' + Math.min(7, rarityInfo(x.r).tier) : ''}">${cardHtml(x.card, x.r, { showName: false, gem: true, fx: true })}<div class="code">${x.isNew ? '<b style="color:var(--brass-hi)">Nouveau</b> · ' : ''}${esc(x.c)}</div></div>`).join('')}</div></div>
     <div class="hint" style="margin-top:18px"><b>${results.filter((x) => x.isNew).length} nouvelle(s) carte(s)</b>Meilleure : ${esc(best.card.n)} (${esc(rarityInfo(best.r).label)})</div>
     <div class="row" style="width:100%;max-width:540px;margin-top:8px">
       <button class="btn ghost grow" id="back">Terminer</button>
@@ -520,7 +522,7 @@ function openSheet(card, p, qty) {
   const ov = $('#overlay');
   const meta = rarityInfo(p.r);
   ov.hidden = false;
-  const front = qty ? cardHtml(card, p.r, { big: true }) : cardHtml(card, p.r, { big: true }).replace('class="card', 'style="filter:grayscale(1) brightness(.4)" class="card');
+  const front = qty ? cardHtml(card, p.r, { big: true, fx: true }) : cardHtml(card, p.r, { big: true }).replace('class="card', 'style="filter:grayscale(1) brightness(.4)" class="card');
   ov.innerHTML = `<div class="sheet" id="sh">
     <div class="spinbox" id="sbox"><div class="body3d" id="b3d">
       <div class="face front">${front}</div>
