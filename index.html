@@ -23,6 +23,7 @@
 <filter id="ltr-g" color-interpolation-filters="sRGB"><feColorMatrix type="matrix" values="0 0 0 0 1  0 0 0 0 .86  0 0 0 0 .38  -2.2 -2.2 -2.2 0 2"/></filter>
 <filter id="ltl-w" color-interpolation-filters="sRGB"><feColorMatrix type="matrix" values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  2.4 2.4 2.4 0 -4.2"/></filter>
 <filter id="ltl-g" color-interpolation-filters="sRGB"><feColorMatrix type="matrix" values="0 0 0 0 1  0 0 0 0 .86  0 0 0 0 .38  2.4 2.4 2.4 0 -4.2"/></filter>
+<filter id="nowhite" color-interpolation-filters="sRGB"><feColorMatrix type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  -6.67 -6.67 -6.67 0 19.3" result="m"/><feComposite in="m" in2="SourceAlpha" operator="in"/></filter>
 </defs></svg>
 <div id="app">
   <main id="view"></main>

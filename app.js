@@ -114,6 +114,7 @@ function renderHome() {
     ${banner([ICONIC.blueEyes, ICONIC.darkMagician, ICONIC.redEyes, ICONIC.exodia, ICONIC.slifer, ICONIC.obelisk, ICONIC.ra], 'Duel Packs', 'Ouvre des boosters et complète tes extensions.')}
     <section class="panel vault">
       <div class="vhead"><span class="vlabel">Boosters</span><span class="vcount"><b id="n">0</b> / ${MAX_BOOSTERS}</span></div>
+      <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><radialGradient id="bOn" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#ffd27a"/><stop offset=".55" stop-color="#f08a1c"/><stop offset="1" stop-color="#a84a00"/></radialGradient><radialGradient id="bOff" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#4a4a52"/><stop offset="1" stop-color="#1c1c20"/></radialGradient></defs></svg>
       <div class="stars" id="stars" aria-hidden="true"></div>
       <div class="vfoot"><span class="timer" id="timer"></span><button class="btn sm" id="go">Ouvrir un booster</button></div>
     </section>
@@ -143,10 +144,11 @@ function renderHome() {
     const v = tick();
     $('#n').textContent = v.boosters;
     const p = v.boosters >= MAX_BOOSTERS ? 1 : 1 - v.msToNext / REFILL_MS;
-    const STAR = '12,1.8 14.9,8.8 22.4,9.5 16.8,14.4 18.5,21.9 12,18 5.5,21.9 7.2,14.4 1.6,9.5 9.1,8.8';
+    const STAR = '12,5.2 13.7,9.6 18.4,9.9 14.8,12.9 16,17.5 12,15 8,17.5 9.2,12.9 5.6,9.9 10.3,9.6';
     $('#stars').innerHTML = Array.from({ length: MAX_BOOSTERS }, (_, k) => {
-      const f = k < v.boosters ? 1 : k === v.boosters ? p : 0;          // l'étoile en cours se remplit au fil des 10 minutes
-      return `<svg viewBox="0 0 24 24" class="star ${f >= 1 ? 'full' : ''}"><defs><linearGradient id="sg${k}" x1="0" x2="1"><stop offset="${f}" stop-color="#f6dc9a"/><stop offset="${f}" stop-color="#26262b"/></linearGradient></defs><polygon points="${STAR}" fill="url(#sg${k})" stroke="${f > 0 ? '#d9b45a' : '#4a4a52'}" stroke-width="1.1" stroke-linejoin="round"/></svg>`;
+      const f = k < v.boosters ? 1 : k === v.boosters ? p : 0;          // la bille en cours se remplit au fil des 10 minutes
+      const ball = (on) => `<circle cx="12" cy="12" r="10.4" fill="url(#${on ? 'bOn' : 'bOff'})" stroke="${on ? '#7a3200' : '#3a3a42'}" stroke-width="1.3"/><circle cx="12" cy="12" r="8.4" fill="none" stroke="${on ? '#ffd9a0' : '#4a4a52'}" stroke-opacity=".5" stroke-width=".6"/><polygon points="${STAR}" fill="${on ? '#fff3cf' : '#5a5a62'}" stroke="${on ? '#b8680c' : '#2a2a30'}" stroke-width=".6" stroke-linejoin="round"/>`;
+      return `<svg viewBox="0 0 24 24" class="star ${f >= 1 ? 'full' : ''}"><clipPath id="cp${k}"><rect x="0" y="0" width="${(24 * f).toFixed(2)}" height="24"/></clipPath>${ball(false)}${f > 0 ? `<g clip-path="url(#cp${k})">${ball(true)}</g>` : ''}</svg>`;
     }).join('');
     $('#timer').innerHTML = v.boosters >= MAX_BOOSTERS ? 'Stock plein' : `Prochain booster dans <b>${fmt(v.msToNext)}</b>`;
   };
@@ -276,7 +278,7 @@ async function startOpen(set) {
   S.tot[set.n] = data.pool.length;
 
   const close = () => { fxStop(); stage.remove(); go(tab === 'sets' ? 'sets' : tab); };
-  const face = `<img class="packimg" src="${esc(boosterUrl(set))}" alt="" onerror="this.remove();this.closest('.pack')&&this.closest('.pack').classList.add('noimg')"><span class="packlabel">${esc(set.n)}</span>`;
+  const face = `<img class="packimg" src="${esc(boosterUrl(set))}" alt="" onerror="this.remove();this.closest('.pack')&&this.closest('.pack').classList.add('noimg')"><img class="packsheen" src="${esc(boosterUrl(set))}" alt="" onerror="this.remove()"><span class="packlabel">${esc(set.n)}</span>`;
   stage.innerHTML = `${stageBg()}
     <div class="top"><span id="stinfo"></span><button class="x" id="cl" aria-label="Fermer">✕</button></div>
     <div class="packstage" id="pstage"><div class="pack3d" id="p3d">
@@ -333,10 +335,17 @@ async function startOpen(set) {
     // les meilleures cartes en dernier, comme dans un vrai booster
     results.sort((a, b) => rarityInfo(a.r).tier - rarityInfo(b.r).tier);
     results.forEach((x) => { const im = new Image(); im.decoding = 'async'; im.src = artUrl(x.card.a); });   // préchargement
-    pk.classList.add('tear');                         // le haut part dans le sens du geste
-    const r = pk.getBoundingClientRect();
-    fxBurst(r.left + r.width / 2, r.top + r.height * .13, ['#ffd86b', '#fff3c4', '#ffffff'], 80, 1.2);
-    if (navigator.vibrate) { try { navigator.vibrate([20, 30, 40]); } catch {} }
+    pk.classList.add('tear');                         // le haut est arraché dans le sens du geste
+    p3d.classList.add('snap');                        // le sachet encaisse le coup
+    stage.classList.add('shake1'); setTimeout(() => stage.classList.remove('shake1'), 500);
+    const r = pk.getBoundingClientRect(), y0 = r.top + r.height * .13;
+    // étincelles et lamelles de foil tout le long de la déchirure, de l'amorce vers la fin
+    for (let k = 0; k < 6; k++) setTimeout(() => {
+      const x = dir > 0 ? r.left + r.width * (k / 5) : r.right - r.width * (k / 5);
+      fxBurst(x, y0, ['#ffd86b', '#fff3c4', '#ffffff', '#c8ccd6'], 22, 1.1);
+    }, k * 35);
+    const fl = document.createElement('div'); fl.className = 'tearflash'; stage.appendChild(fl); setTimeout(() => fl.remove(), 400);
+    if (navigator.vibrate) { try { navigator.vibrate([15, 20, 30, 20, 50]); } catch {} }
     setTimeout(() => stage.classList.add('packout'), 520);                  // le sachet vide s'enfonce et s'efface
     setTimeout(() => revealStep(stage, set, data, results, 0, close), 860);   // la première carte monte à sa place
   };
