@@ -631,15 +631,18 @@ const localize = async (setName, cards, region) => {
 const mainPool = (pool) => { const r = regionList(pool)[0]; return pool.filter((p) => regionOf(p.c) === r); };
 
 // ---------- Collection ----------
+const STYLES = ['Normal', 'Effet', 'Rituel', 'Fusion', 'Synchro', 'Xyz', 'Pendule', 'Lien'];
+const styleOf = (t) => /link/i.test(t) ? 'Lien' : /pendulum/i.test(t) ? 'Pendule' : /xyz/i.test(t) ? 'Xyz' : /synchro/i.test(t) ? 'Synchro' : /fusion/i.test(t) ? 'Fusion' : /ritual/i.test(t) ? 'Rituel' : /normal/i.test(t) ? 'Normal' : /spell|trap/i.test(t) ? 'Magie/Piège' : 'Effet';
+let albumStyle = 'all';
 const ALBUMS = [
   { id: 'gods', n: 'Dieux égyptiens', q: 'id=10000020,10000000,10000010', cover: 10000010 },
   { id: 'beasts', n: 'Bêtes sacrées', q: 'id=6007213,32491822,69890967', cover: 69890967 },
   { id: 'exodia', n: 'Exodia', q: 'id=33396948,7902349,70903634,8124921,44519536', cover: 33396948 },
-  { id: 'bewd', n: 'Dragon Blanc aux Yeux Bleus', q: 'archetype=Blue-Eyes', cover: 89631139 },
-  { id: 'cyber', n: 'Cyber Dragon', q: 'archetype=Cyber%20Dragon', cover: 70095154 },
-  { id: 'dm', n: 'Magicien Sombre', q: 'archetype=Dark%20Magician', cover: 46986414 },
-  { id: 'reb', n: 'Dragon Noir aux Yeux Rouges', q: 'archetype=Red-Eyes', cover: 74677422 },
-  { id: 'chaos', n: 'Chaos', q: 'archetype=Chaos', cover: 82301904 },
+  { id: 'bewd', n: 'Dragon Blanc aux Yeux Bleus', q: ['archetype=Blue-Eyes', 'fname=Blue-Eyes', 'fname=Blue%20Eyes', 'fname=Dragon%20Master%20Knight', 'fname=Chaos%20MAX'], cover: 89631139, re: /blue[- ]eyes|chaos max/i },
+  { id: 'cyber', n: 'Cyber Dragon', q: ['archetype=Cyber%20Dragon', 'fname=Cyber%20Dragon', 'fname=Cyber%20End', 'fname=Cyber%20Twin', 'fname=Cyber%20Laser', 'fname=Cyber%20Eternity', 'fname=Chimeratech', 'fname=Cyber%20Ouroboros'], cover: 70095154, re: /cyber (dragon|end|twin|laser|eternity|ouroboros)|chimeratech/i },
+  { id: 'dm', n: 'Magicien Sombre', q: ['archetype=Dark%20Magician', 'fname=Dark%20Magician'], cover: 46986414, re: /dark magician/i },
+  { id: 'reb', n: 'Dragon Noir aux Yeux Rouges', q: ['archetype=Red-Eyes', 'fname=Red-Eyes'], cover: 74677422, re: /red-eyes|red eyes/i },
+  { id: 'chaos', n: 'Chaos', q: 'archetype=Chaos', cover: 82301904, re: /^chaos |chaos emperor|chaos soldier/i },
 ];
 async function ownedCards() {
   const names = Object.keys(S.tot).filter((n) => Object.keys(S.col).some((k) => k.startsWith(n + '||')));
@@ -648,7 +651,7 @@ async function ownedCards() {
   for (const [n, data] of datas) for (const p of data.pool) {
     const k = n + '||' + p.c + '||' + p.r, q = S.col[k] || 0;
     if (!q) continue;
-    const e = m.get(p.i) || { qty: 0, best: null };
+    const e = m.get(p.i) || { qty: 0, best: null, card: { ...data.cards[p.i], i: p.i } };
     e.qty += q;
     if (!e.best || rarityInfo(p.r).tier > rarityInfo(e.best.p.r).tier) e.best = { p, k };
     m.set(p.i, e);
@@ -661,18 +664,28 @@ async function renderAlbums(body) {
   try {
     own = await ownedCards();
     lists = await Promise.all(ALBUMS.map((al) => getAlbumCards(al.id, al.q).catch(() => [])));
+    lists = lists.map((l, k) => {                       // toute carte possédée qui correspond à l'album y figure, même si l'API l'avait oubliée
+      const re = ALBUMS[k].re, ids = new Set(l.map((c) => c.i)), extra = [];
+      if (re) for (const [id, o] of own) if (!ids.has(id) && o.card && re.test(o.card.n || '') && !/spell|trap/i.test(o.card.t || '')) extra.push(o.card);
+      return l.concat(extra);
+    });
   } catch (e) { body.innerHTML = `<div class="err">Chargement impossible (${esc(e.message)}).</div>`; return; }
   if (albumOpen) {
     const k = ALBUMS.findIndex((x) => x.id === albumOpen);
-    const al = ALBUMS[k], cards = lists[k], got = cards.filter((c) => own.has(c.i)).length;
+    const al = ALBUMS[k], all = lists[k].slice().sort((x, y) => STYLES.indexOf(styleOf(x.t)) - STYLES.indexOf(styleOf(y.t)) || (y.k ?? -1) - (x.k ?? -1) || x.n.localeCompare(y.n));
+    const present = STYLES.filter((s) => all.some((c) => styleOf(c.t) === s));
+    if (albumStyle !== 'all' && !present.includes(albumStyle)) albumStyle = 'all';
+    const cards = albumStyle === 'all' ? all : all.filter((c) => styleOf(c.t) === albumStyle), got = cards.filter((c) => own.has(c.i)).length;
     body.innerHTML = `<button class="chip" id="abk">← Albums</button>
       <div class="compl" style="margin-top:12px"><b>${esc(al.n)}</b><span>${got} / ${cards.length} cartes</span></div>
       <div class="bar" style="margin-bottom:14px"><i style="width:${cards.length ? (got / cards.length) * 100 : 0}%"></i></div>
+      <div class="chips" id="astyle"><button class="chip ${albumStyle === 'all' ? 'on' : ''}" data-s="all">Tous les styles</button>${present.map((s) => `<button class="chip ${albumStyle === s ? 'on' : ''}" data-s="${s}">${s} <small>${all.filter((c) => styleOf(c.t) === s).length}</small></button>`).join('')}</div>
       <div class="grid" id="agrid">${cards.map((c, i) => {
         const o = own.get(c.i), r = o ? o.best.p.r : 'common';
         return `<button class="slot ${o ? '' : 'missing'}" data-i="${i}" aria-label="${esc(c.n)}">${o && o.qty > 1 ? `<span class="qty">x${o.qty}</span>` : ''}${cardHtml(c, r, { showName: false, gem: !!o, code: o ? o.best.p.c : '' })}<div class="code">${o ? esc(o.best.p.c) : '—'}</div></button>`;
       }).join('')}</div>${cards.length ? '' : '<div class="empty">Cet album n’a pas pu être chargé. Vérifie ta connexion.</div>'}`;
-    $('#abk').onclick = () => { albumOpen = null; renderAlbums(body); };
+    $('#abk').onclick = () => { albumOpen = null; albumStyle = 'all'; renderAlbums(body); };
+    $('#astyle').onclick = (e) => { const s = e.target.closest('[data-s]'); if (s) { albumStyle = s.dataset.s; renderAlbums(body); } };
     body.querySelectorAll('#agrid .slot').forEach((b) => (b.onclick = () => {
       const c = cards[+b.dataset.i], o = own.get(c.i);
       openSheet(c, o ? o.best.p : { c: '—', r: 'common' }, o ? o.qty : 0, o ? o.best.k : null);
@@ -710,7 +723,7 @@ function renderCollection() {
     ${modeSeg}
     <div class="chips" id="setchips"><button class="chip ${colSet === '*' ? 'on' : ''}" data-n="*">Tout</button>${sets.map((n) => `<button class="chip ${n === colSet ? 'on' : ''}" data-n="${esc(n)}">${esc(n)}</button>`).join('')}</div>
     <div class="seg" id="own"><button data-o="all" class="${colFilter.own === 'all' ? 'on' : ''}">Toutes</button><button data-o="own" class="${colFilter.own === 'own' ? 'on' : ''}">Possédées</button><button data-o="miss" class="${colFilter.own === 'miss' ? 'on' : ''}">Manquantes</button><button data-o="dup" class="${colFilter.own === 'dup' ? 'on' : ''}">Doubles</button></div>
-    <div class="sortbar"><label>Trier par</label><select id="csort">${[['num', 'Numéro'], ['rar', 'Rareté'], ['name', 'Nom'], ['atk', 'ATK'], ['def', 'DEF'], ['lvl', 'Niveau'], ['type', 'Type'], ['attr', 'Attribut'], ['qty', 'Quantité'], ['set', 'Extension']].map(([v, l]) => `<option value="${v}" ${colFilter.sort === v ? 'selected' : ''}>${l}</option>`).join('')}</select><button class="chip" id="cdir" aria-label="Sens du tri">${colFilter.dir > 0 ? '↑ Croissant' : '↓ Décroissant'}</button></div>
+    <div class="sortbar"><label>Trier par</label><select id="csort">${[['num', 'Numéro'], ['rar', 'Rareté'], ['name', 'Nom'], ['atk', 'ATK'], ['def', 'DEF'], ['lvl', 'Niveau'], ['style', 'Style de carte'], ['type', 'Type'], ['attr', 'Attribut'], ['qty', 'Quantité'], ['set', 'Extension']].map(([v, l]) => `<option value="${v}" ${colFilter.sort === v ? 'selected' : ''}>${l}</option>`).join('')}</select><button class="chip" id="cdir" aria-label="Sens du tri">${colFilter.dir > 0 ? '↑ Croissant' : '↓ Décroissant'}</button></div>
     <div id="colbody"><div class="empty"><span class="spin"></span></div></div>`;
   startHero();
   bindMode();
@@ -755,6 +768,7 @@ async function drawSetCollection() {
     atk: (a, b) => cmpNum(num(a.card.k), num(b.card.k)),
     def: (a, b) => cmpNum(num(a.card.d), num(b.card.d)),
     lvl: (a, b) => cmpNum(num(a.card.l), num(b.card.l)),
+    style: (a, b) => STYLES.indexOf(styleOf(a.card.t)) - STYLES.indexOf(styleOf(b.card.t)) || (b.card.k ?? -1) - (a.card.k ?? -1),
     type: (a, b) => (a.card.t || '').localeCompare(b.card.t || '') || (a.card.r || '').localeCompare(b.card.r || ''),
     attr: (a, b) => (a.card.e || 'zzz').localeCompare(b.card.e || 'zzz'),
     qty: (a, b) => qOf(a) - qOf(b),

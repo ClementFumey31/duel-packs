@@ -1060,3 +1060,4 @@ body:has(.stage) #sndbtn { display: flex; }
 .alb-name { font-size: 13px; font-weight: 600; letter-spacing: .02em; }
 .alb-meta { font-size: 11px; color: #9a9aa2; margin: 2px 0 6px; }
 .album .bar { height: 3px; }
+#astyle .chip small { opacity: .6; font-size: 10px; margin-left: 3px; }
