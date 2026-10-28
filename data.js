@@ -125,3 +125,24 @@ export async function getSetLang(name, lang) {
     return cached ? cached.v : {};
   }
 }
+
+/** Cartes d'un album : requête API (ex. "archetype=Blue-Eyes" ou "id=1,2,3"), seules les cartes TCG sont gardées. */
+export async function getAlbumCards(key, query) {
+  const ck = 'alb2:' + key;
+  const cached = await kvGet(ck);
+  if (cached && Date.now() - cached.t < 14 * DAY) return cached.v;
+  try {
+    const json = await getJson(`${API}/cardinfo.php?${query}`);
+    const v = [];
+    for (const c of json.data || []) {
+      if (!c.card_sets || !c.card_sets.length) continue;
+      const img = c.card_images && c.card_images[0];
+      v.push({ i: c.id, n: c.name, t: c.type, a: img ? img.id : c.id, x: c.desc || '', e: c.attribute || '', l: c.level ?? c.linkval ?? null, k: c.atk ?? null, d: c.def ?? null, r: c.race || '' });
+    }
+    if (v.length) await kvSet(ck, { t: Date.now(), v });
+    return v;
+  } catch (e) {
+    if (cached) return cached.v;
+    throw e;
+  }
+}

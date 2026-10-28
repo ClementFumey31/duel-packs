@@ -1,12 +1,14 @@
 import { computeBoosters, consumeBooster, MAX_BOOSTERS, REFILL_MS, openPack, packConfigFor, packSizeFor, rarityInfo, RARITY_META } from './engine.js';
 import { loadState, saveState, parseSave } from './state.js';
 import * as SND from './sound.js';
-import { getSets, getSetData, getSetLang, artUrl, cropUrl, boosterUrl, ICONIC } from './data.js';
+import { getSets, getSetData as getSetDataRaw, getSetLang, getAlbumCards, artUrl, cropUrl, boosterUrl, ICONIC } from './data.js';
 
 let S = loadState();
 let tab = 'home';
 let setFilter = { q: '', sort: 'new', reg: 'EN' };
 let colSet = null;
+let colMode = 'sets';
+let albumOpen = null;
 const lastRegion = {};
 let colFilter = { own: 'all', rarity: 'all', sort: 'num', dir: 1, reg: null };
 let timerId = null;
@@ -158,6 +160,30 @@ function renderHome() {
   };
   draw();
   timerId = setInterval(draw, 1000);
+}
+
+
+// L'API ne liste le plus souvent que les codes américains (-EN) : on déduit les autres versions (FR, DE, IT, PT, SP, UK)
+const expandMem = new WeakMap();
+const EXTRA = { EU: 'EU', FR: 'FR', DE: 'DE', IT: 'IT', PT: 'PT', SP: 'SP' };
+async function getSetData(name) {
+  const d = await getSetDataRaw(name);
+  if (expandMem.has(d)) return expandMem.get(d);
+  const have = new Set(d.pool.map((p) => regionOf(p.c)));
+  const src = have.has('EN') ? 'EN' : have.has('EU') ? 'EU' : null;
+  let pool = d.pool;
+  if (src) {
+    const base = d.pool.filter((p) => regionOf(p.c) === src);
+    const add = [];
+    for (const r of Object.keys(EXTRA)) {
+      if (have.has(r)) continue;
+      for (const p of base) add.push({ ...p, c: p.c.replace(/-[A-Z]+(\d)/, `-${EXTRA[r]}$1`) });
+    }
+    pool = d.pool.concat(add);
+  }
+  const out = { ...d, pool };
+  expandMem.set(d, out);
+  return out;
 }
 
 // ---------- Extensions ----------
@@ -605,9 +631,72 @@ const localize = async (setName, cards, region) => {
 const mainPool = (pool) => { const r = regionList(pool)[0]; return pool.filter((p) => regionOf(p.c) === r); };
 
 // ---------- Collection ----------
+const ALBUMS = [
+  { id: 'gods', n: 'Dieux égyptiens', q: 'id=10000020,10000000,10000010', cover: 10000010 },
+  { id: 'beasts', n: 'Bêtes sacrées', q: 'id=6007213,32491822,69890967', cover: 69890967 },
+  { id: 'exodia', n: 'Exodia', q: 'id=33396948,7902349,70903634,8124921,44519536', cover: 33396948 },
+  { id: 'bewd', n: 'Dragon Blanc aux Yeux Bleus', q: 'archetype=Blue-Eyes', cover: 89631139 },
+  { id: 'cyber', n: 'Cyber Dragon', q: 'archetype=Cyber%20Dragon', cover: 70095154 },
+  { id: 'dm', n: 'Magicien Sombre', q: 'archetype=Dark%20Magician', cover: 46986414 },
+  { id: 'reb', n: 'Dragon Noir aux Yeux Rouges', q: 'archetype=Red-Eyes', cover: 74677422 },
+  { id: 'chaos', n: 'Chaos', q: 'archetype=Chaos', cover: 82301904 },
+];
+async function ownedCards() {
+  const names = Object.keys(S.tot).filter((n) => Object.keys(S.col).some((k) => k.startsWith(n + '||')));
+  const datas = await Promise.all(names.map(async (n) => [n, await getSetData(n)]));
+  const m = new Map();
+  for (const [n, data] of datas) for (const p of data.pool) {
+    const k = n + '||' + p.c + '||' + p.r, q = S.col[k] || 0;
+    if (!q) continue;
+    const e = m.get(p.i) || { qty: 0, best: null };
+    e.qty += q;
+    if (!e.best || rarityInfo(p.r).tier > rarityInfo(e.best.p.r).tier) e.best = { p, k };
+    m.set(p.i, e);
+  }
+  return m;
+}
+async function renderAlbums(body) {
+  body.innerHTML = '<div class="empty"><span class="spin"></span></div>';
+  let own, lists;
+  try {
+    own = await ownedCards();
+    lists = await Promise.all(ALBUMS.map((al) => getAlbumCards(al.id, al.q).catch(() => [])));
+  } catch (e) { body.innerHTML = `<div class="err">Chargement impossible (${esc(e.message)}).</div>`; return; }
+  if (albumOpen) {
+    const k = ALBUMS.findIndex((x) => x.id === albumOpen);
+    const al = ALBUMS[k], cards = lists[k], got = cards.filter((c) => own.has(c.i)).length;
+    body.innerHTML = `<button class="chip" id="abk">← Albums</button>
+      <div class="compl" style="margin-top:12px"><b>${esc(al.n)}</b><span>${got} / ${cards.length} cartes</span></div>
+      <div class="bar" style="margin-bottom:14px"><i style="width:${cards.length ? (got / cards.length) * 100 : 0}%"></i></div>
+      <div class="grid" id="agrid">${cards.map((c, i) => {
+        const o = own.get(c.i), r = o ? o.best.p.r : 'common';
+        return `<button class="slot ${o ? '' : 'missing'}" data-i="${i}" aria-label="${esc(c.n)}">${o && o.qty > 1 ? `<span class="qty">x${o.qty}</span>` : ''}${cardHtml(c, r, { showName: false, gem: !!o, code: o ? o.best.p.c : '' })}<div class="code">${o ? esc(o.best.p.c) : '—'}</div></button>`;
+      }).join('')}</div>${cards.length ? '' : '<div class="empty">Cet album n’a pas pu être chargé. Vérifie ta connexion.</div>'}`;
+    $('#abk').onclick = () => { albumOpen = null; renderAlbums(body); };
+    body.querySelectorAll('#agrid .slot').forEach((b) => (b.onclick = () => {
+      const c = cards[+b.dataset.i], o = own.get(c.i);
+      openSheet(c, o ? o.best.p : { c: '—', r: 'common' }, o ? o.qty : 0, o ? o.best.k : null);
+    }));
+    return;
+  }
+  body.innerHTML = `<div class="albums">${ALBUMS.map((al, k) => {
+    const cards = lists[k], got = cards.filter((c) => own.has(c.i)).length, pct = cards.length ? Math.round((got / cards.length) * 100) : 0;
+    return `<button class="album" data-id="${al.id}"><div class="alb-img"><img src="${cropUrl(al.cover)}" alt="" loading="lazy" onerror="this.remove()"></div>
+      <div class="alb-name">${esc(al.n)}</div><div class="alb-meta">${got} / ${cards.length || '?'} · ${pct}%</div><div class="bar"><i style="width:${pct}%"></i></div></button>`;
+  }).join('')}</div>`;
+  body.querySelectorAll('.album').forEach((b) => (b.onclick = () => { albumOpen = b.dataset.id; renderAlbums(body); }));
+}
+
 function renderCollection() {
   const sets = Object.keys(S.tot).filter((n) => Object.keys(S.col).some((k) => k.startsWith(n + '||')));
   const uniq = Object.keys(S.col).length, total = Object.values(S.col).reduce((a, b) => a + b, 0);
+  const modeSeg = `<div class="seg" id="cmode"><button data-m="sets" class="${colMode === 'sets' ? 'on' : ''}">Extensions</button><button data-m="albums" class="${colMode === 'albums' ? 'on' : ''}">Albums</button></div>`;
+  const bindMode = () => { $('#cmode').onclick = (e) => { const m = e.target.dataset.m; if (m) { colMode = m; albumOpen = null; renderCollection(); } }; };
+  if (sets.length && colMode === 'albums') {
+    view.innerHTML = `${banner([ICONIC.exodia, ICONIC.summonedSkull], 'Collection', `${uniq} cartes différentes, ${total} au total.`)}${modeSeg}<div id="albbody"></div>`;
+    startHero(); bindMode(); renderAlbums($('#albbody'));
+    return;
+  }
   if (!sets.length) {
     view.innerHTML = `${banner([ICONIC.exodia, ICONIC.summonedSkull], 'Collection', 'Ta vitrine est vide pour l’instant.')}
       <div class="empty">Ouvre un premier booster depuis l’onglet Extensions.</div><button class="btn" id="g">Voir les extensions</button>`;
@@ -618,11 +707,13 @@ function renderCollection() {
   if (!colSet || (colSet !== '*' && !sets.includes(colSet))) colSet = sets[0];
   view.innerHTML = `
     ${banner([ICONIC.exodia, ICONIC.summonedSkull], 'Collection', `${uniq} cartes différentes, ${total} au total.`)}
+    ${modeSeg}
     <div class="chips" id="setchips"><button class="chip ${colSet === '*' ? 'on' : ''}" data-n="*">Tout</button>${sets.map((n) => `<button class="chip ${n === colSet ? 'on' : ''}" data-n="${esc(n)}">${esc(n)}</button>`).join('')}</div>
     <div class="seg" id="own"><button data-o="all" class="${colFilter.own === 'all' ? 'on' : ''}">Toutes</button><button data-o="own" class="${colFilter.own === 'own' ? 'on' : ''}">Possédées</button><button data-o="miss" class="${colFilter.own === 'miss' ? 'on' : ''}">Manquantes</button><button data-o="dup" class="${colFilter.own === 'dup' ? 'on' : ''}">Doubles</button></div>
     <div class="sortbar"><label>Trier par</label><select id="csort">${[['num', 'Numéro'], ['rar', 'Rareté'], ['name', 'Nom'], ['atk', 'ATK'], ['def', 'DEF'], ['lvl', 'Niveau'], ['type', 'Type'], ['attr', 'Attribut'], ['qty', 'Quantité'], ['set', 'Extension']].map(([v, l]) => `<option value="${v}" ${colFilter.sort === v ? 'selected' : ''}>${l}</option>`).join('')}</select><button class="chip" id="cdir" aria-label="Sens du tri">${colFilter.dir > 0 ? '↑ Croissant' : '↓ Décroissant'}</button></div>
     <div id="colbody"><div class="empty"><span class="spin"></span></div></div>`;
   startHero();
+  bindMode();
   $('#setchips').onclick = (e) => { const n = e.target.dataset.n; if (n) { colSet = n; colFilter.rarity = 'all'; renderCollection(); } };
   $('#own').onclick = (e) => { const o = e.target.dataset.o; if (o) { colFilter.own = o; renderCollection(); } };
   $('#csort').onchange = (e) => { colFilter.sort = e.target.value; drawSetCollection(); };
@@ -639,7 +730,8 @@ async function drawSetCollection() {
   let ent = [];
   for (const [n, data] of datas) for (const p of data.pool) ent.push({ n, p, card: data.cards[p.i], k: n + '||' + p.c + '||' + p.r });
   const qOf = (e) => S.col[e.k] || 0;
-  const regs = regionList(ent.map((e) => e.p));
+  const regs0 = regionList(ent.map((e) => e.p));
+  const regs = regs0.filter((r, i) => i === 0 || ent.some((e) => regionOf(e.p.c) === r && S.col[e.k]));
   if (!regs.includes(colFilter.reg)) colFilter.reg = regs[0];
   const entAll = ent;
   const regOwn = (r) => entAll.filter((e) => regionOf(e.p.c) === r && qOf(e)).length;
