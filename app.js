@@ -6,7 +6,7 @@ let S = loadState();
 let tab = 'home';
 let setFilter = { q: '', sort: 'new' };
 let colSet = null;
-let colFilter = { own: 'all', rarity: 'all', sort: 'num', dir: 1 };
+let colFilter = { own: 'all', rarity: 'all', sort: 'num', dir: 1, reg: null };
 let timerId = null;
 let heroTimer = null;
 
@@ -182,7 +182,7 @@ async function renderSets() {
     l = l.sort(by).slice(0, 300);
     $('#list').innerHTML = l.length ? `<div class="tiles">${l.map((s) => {
       const own = S.tot[s.n] ? Object.keys(S.col).filter((k) => k.startsWith(s.n + '||')).length : 0;
-      const pct = S.tot[s.n] ? Math.round((own / S.tot[s.n]) * 100) : null;
+      const pct = S.tot[s.n] ? Math.min(100, Math.round((own / S.tot[s.n]) * 100)) : null;
       return `<button class="tile" data-i="${setsCache.indexOf(s)}">
         <div class="tile-img"><span>${esc(s.c)}</span><img data-bs="${setsCache.indexOf(s)}" alt="" decoding="async">${pct !== null ? `<i class="tile-pct">${pct}%</i>` : ''}</div>
         <div class="tile-name">${esc(s.n)}</div>
@@ -276,7 +276,7 @@ async function startOpen(set) {
     return;
   }
   if (!data.pool.length) { stage.remove(); toast('Cette extension ne contient aucune carte exploitable.'); return; }
-  S.tot[set.n] = data.pool.length;
+  S.tot[set.n] = mainPool(data.pool).length;
 
   const close = () => { fxStop(); stage.remove(); go(tab === 'sets' ? 'sets' : tab); };
   const face = `<img class="packimg" data-bs="0" alt=""><img class="packsheen" data-bs="0" alt=""><span class="packlabel">${esc(set.n)}</span>`;
@@ -323,7 +323,8 @@ async function startOpen(set) {
     pk.style.setProperty('--ts', dir);
     pk.classList.remove('dragging');
     S = { ...S, boosters: next.boosters, lastRefillAt: next.lastRefillAt, lastSeenAt: next.lastSeenAt, opened: S.opened + 1 };
-    const pulled = openPack(data.pool, packConfigFor(set.n, set.d, data.pool.length));
+    const mp = mainPool(data.pool);
+    const pulled = openPack(mp, packConfigFor(set.n, set.d, mp.length));
     const results = pulled.map((p) => {
       const key = set.n + '||' + p.c + '||' + p.r;
       const isNew = !S.col[key];
@@ -528,6 +529,14 @@ function hydrateBoosters(root, getSet) {
   });
 }
 
+
+// ---------- Versions régionales d'une carte (EN = Amérique, E/EU = Europe, FR, DE...) ----------
+const REGIONS = { EN: 'Amérique', E: 'Europe', EU: 'Europe', AE: 'Asie (EN)', FR: 'France', F: 'France', DE: 'Allemagne', G: 'Allemagne', IT: 'Italie', I: 'Italie', SP: 'Espagne', S: 'Espagne', PT: 'Portugal', P: 'Portugal', JP: 'Japon', J: 'Japon', KR: 'Corée', K: 'Corée', SC: 'Chine', TC: 'Taïwan', AU: 'Australie', NA: 'Amérique' };
+const REGION_ORDER = ['EN', 'NA', 'E', 'EU', 'AE', 'AU', 'FR', 'F', 'DE', 'G', 'IT', 'I', 'SP', 'S', 'PT', 'P', 'JP', 'J', 'KR', 'K', 'SC', 'TC'];
+const regionOf = (code) => { const m = /-([A-Z]+)\d/.exec(code || ''); return m ? m[1] : (/-\d/.test(code || '') ? 'FR' : 'EN'); };
+const regionList = (pool) => [...new Set(pool.map((p) => regionOf(p.c)))].sort((a, b) => { const ia = REGION_ORDER.indexOf(a), ib = REGION_ORDER.indexOf(b); return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib) || a.localeCompare(b); });
+const mainPool = (pool) => { const r = regionList(pool)[0]; return pool.filter((p) => regionOf(p.c) === r); };
+
 // ---------- Collection ----------
 function renderCollection() {
   const sets = Object.keys(S.tot).filter((n) => Object.keys(S.col).some((k) => k.startsWith(n + '||')));
@@ -563,6 +572,10 @@ async function drawSetCollection() {
   let ent = [];
   for (const [n, data] of datas) for (const p of data.pool) ent.push({ n, p, card: data.cards[p.i], k: n + '||' + p.c + '||' + p.r });
   const qOf = (e) => S.col[e.k] || 0;
+  const regs = regionList(ent.map((e) => e.p));
+  if (!regs.includes(colFilter.reg)) colFilter.reg = regs[0];
+  const regOwn = (r) => ent.filter((e) => regionOf(e.p.c) === r && qOf(e)).length;
+  ent = ent.filter((e) => regionOf(e.p.c) === colFilter.reg);
   const ownN = ent.filter((e) => qOf(e)).length;
   const rars = [...new Set(ent.map((e) => e.p.r))].sort((a, b) => rarityInfo(a).tier - rarityInfo(b).tier);
   let list = ent.filter((e) => (colFilter.rarity === 'all' || e.p.r === colFilter.rarity) &&
@@ -587,12 +600,14 @@ async function drawSetCollection() {
   body.innerHTML = `
     <div class="compl"><b>${all ? ownN + ' cartes' : ownN + ' / ' + ent.length}</b><span>${all ? 'toutes extensions · ' : 'cartes de l’extension · '}${dups} double${dups > 1 ? 's' : ''}</span></div>
     <div class="bar" style="margin-bottom:14px"><i style="width:${all ? 100 : (ownN / Math.max(1, ent.length)) * 100}%"></i></div>
+    ${regs.length > 1 ? `<div class="chips" id="regchips">${regs.map((r) => `<button class="chip ${colFilter.reg === r ? 'on' : ''}" data-g="${esc(r)}">${esc(REGIONS[r] || r)} <small>${regOwn(r)}</small></button>`).join('')}</div>` : ''}
     <div class="chips" id="rchips"><button class="chip ${colFilter.rarity === 'all' ? 'on' : ''}" data-r="all">Toutes raretés</button>${rars.map((r) => `<button class="chip ${colFilter.rarity === r ? 'on' : ''}" data-r="${esc(r)}">${esc(rarityInfo(r).label)}</button>`).join('')}</div>
     <div class="grid" id="grid">${list.map((e, i) => {
       const q = qOf(e);
       return `<button class="slot ${q ? '' : 'missing'}" data-i="${i}" aria-label="${esc(e.card.n)}">
         ${q > 1 ? `<span class="qty">x${q}</span>` : ''}${cardHtml(e.card, e.p.r, { showName: false, gem: !!q })}<div class="code">${esc(e.p.c)}</div></button>`;
     }).join('')}</div>${list.length ? '' : '<div class="empty">Aucune carte avec ce filtre.</div>'}`;
+  const rg = $('#regchips'); if (rg) rg.onclick = (ev) => { const g = ev.target.closest('[data-g]'); if (g) { colFilter.reg = g.dataset.g; colFilter.rarity = 'all'; drawSetCollection(); } };
   $('#rchips').onclick = (ev) => { const r = ev.target.dataset.r; if (r) { colFilter.rarity = r; drawSetCollection(); } };
   document.querySelectorAll('#grid .slot').forEach((b) => (b.onclick = () => {
     const e = list[+b.dataset.i];
