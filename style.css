@@ -1049,3 +1049,5 @@ body { background-size: auto, 288px 360px, auto; }
 .vbtn { display: flex; justify-content: space-between; align-items: center; text-align: left; }
 .vbtn small { opacity: .7; font-size: 11px; }
 .packlabel small { font-size: 9px; opacity: .8; letter-spacing: .14em; }
+#sndbtn { display: none; position: fixed; top: calc(14px + env(safe-area-inset-top, 0px)); right: 64px; z-index: 60; width: 36px; height: 36px; border-radius: 10px; align-items: center; justify-content: center; font-size: 15px; background: #0d0d0f; border: 1px solid #8a6d2a; color: #e8e0c8; padding: 0; }
+body:has(.stage) #sndbtn { display: flex; }

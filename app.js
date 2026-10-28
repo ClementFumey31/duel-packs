@@ -1,10 +1,11 @@
 import { computeBoosters, consumeBooster, MAX_BOOSTERS, REFILL_MS, openPack, packConfigFor, packSizeFor, rarityInfo, RARITY_META } from './engine.js';
 import { loadState, saveState, parseSave } from './state.js';
+import * as SND from './sound.js';
 import { getSets, getSetData, getSetLang, artUrl, cropUrl, boosterUrl, ICONIC } from './data.js';
 
 let S = loadState();
 let tab = 'home';
-let setFilter = { q: '', sort: 'new' };
+let setFilter = { q: '', sort: 'new', reg: 'EN' };
 let colSet = null;
 const lastRegion = {};
 let colFilter = { own: 'all', rarity: 'all', sort: 'num', dir: 1, reg: null };
@@ -36,11 +37,13 @@ const fmt = (ms) => {
 };
 
 // ---------- Carte (composant) ----------
-function cardHtml(card, rarity, { big = false, showName = true, badge = false, gem = false, fx = false } = {}) {
+function cardHtml(card, rarity, { big = false, showName = true, badge = false, gem = false, fx = false, code = '' } = {}) {
   const r = rarityInfo(rarity);
   const on = fx && r.fx !== 'none';
   const im = `<img src="${artUrl(card.a)}" alt="" decoding="async">`;
-  return `<div class="card ${big ? 'lg' : ''} ${on ? 'fxon' : ''} ${/xyz|link/i.test(card.t || '') ? 'lt' : ''} t${r.tier}" data-fx="${r.fx}">
+  const rg = code && IMGRG[regionOf(code)];
+  const frAttr = rg ? ` data-fr="${esc((card.en || card.n || '') + '|' + code + '|' + rarity)}"` : '';
+  return `<div${frAttr} class="card ${big ? 'lg' : ''} ${on ? 'fxon' : ''} ${/xyz|link/i.test(card.t || '') ? 'lt' : ''} t${r.tier}" data-fx="${r.fx}">
     <img src="${artUrl(card.a)}" alt="${esc(card.n)}" loading="${big ? 'eager' : 'lazy'}" decoding="async" onerror="this.parentNode.classList.add('noimg')">
     ${on ? `<div class="fx">${im}</div><div class="fxn">${im}</div><div class="fxa">${im}</div><div class="spk"></div><div class="glare"></div>` : ''}
     ${gem && r.tier > 0 ? `<span class="gem t${Math.min(7, r.tier)}" title="${esc(r.label)}"></span>` : ''}
@@ -165,6 +168,7 @@ async function renderSets() {
   view.innerHTML = `
     ${banner([ICONIC.darkMagician, ICONIC.magicianGirl], 'Extensions', `Choisis un booster. Il te reste <b>${tick().boosters}</b> sur ${MAX_BOOSTERS}.`)}
     <div class="seg"><button class="on">TCG</button><button disabled title="À venir">OCG, bientôt</button></div>
+    <div class="chips" id="vtabs">${OPEN_REGIONS.map((r) => `<button class="chip ${setFilter.reg === r ? 'on' : ''}" data-g="${r}">${esc(REGIONS[r])}</button>`).join('')}</div>
     <input class="search" id="q" placeholder="Rechercher une extension" value="${esc(setFilter.q)}" autocomplete="off">
     <div class="seg" id="sort"><button data-s="new" class="${setFilter.sort === 'new' ? 'on' : ''}">Récentes</button><button data-s="old" class="${setFilter.sort === 'old' ? 'on' : ''}">Anciennes</button><button data-s="az" class="${setFilter.sort === 'az' ? 'on' : ''}">A à Z</button></div>
     <div id="list"><div class="empty"><span class="spin"></span></div></div>`;
@@ -189,9 +193,10 @@ async function renderSets() {
         <div class="tile-name">${esc(s.n)}</div>
         <div class="tile-meta">${s.d ? esc(s.d.slice(0, 4)) + ' · ' : ''}${s.k} cartes · ${packSizeFor(s.n, s.k)}/booster</div></button>`;
     }).join('')}</div>` : '<div class="empty">Aucune extension trouvée.</div>';
-    document.querySelectorAll('.tile').forEach((b) => (b.onclick = () => startOpen(setsCache[+b.dataset.i])));
+    document.querySelectorAll('.tile').forEach((b) => (b.onclick = () => startOpen(setsCache[+b.dataset.i], setFilter.reg)));
     hydrateBoosters(document, (i) => setsCache[+i]);
   };
+  $('#vtabs').onclick = (e) => { const g = e.target.closest('[data-g]'); if (!g) return; setFilter.reg = g.dataset.g; document.querySelectorAll('#vtabs .chip').forEach((c) => c.classList.toggle('on', c.dataset.g === setFilter.reg)); draw(); };
   $('#q').oninput = (e) => { setFilter.q = e.target.value; draw(); };
   $('#sort').onclick = (e) => {
     const s = e.target.dataset.s; if (!s) return;
@@ -279,6 +284,7 @@ async function startOpen(set, region) {
   if (!data.pool.length) { stage.remove(); toast('Cette extension ne contient aucune carte exploitable.'); return; }
   S.tot[set.n] = mainPool(data.pool).length;
   const regs = regionList(data.pool);
+  if (region && !regs.includes(region)) { stage.remove(); toast(`${set.n} n’existe pas en version ${REGIONS[region] || region}.`); return; }
   if (!region && regs.length === 1) region = regs[0];
   if (!region) {
     const last = lastRegion[set.n];
@@ -333,7 +339,7 @@ async function startOpen(set, region) {
     if (opening) return;
     const next = consumeBooster(S, Date.now());
     if (!next) { toast('Plus de booster.'); setTear(0, 1); return; }
-    opening = true;
+    opening = true; SND.dragStop(); SND.rip(); setTimeout(SND.whoosh, 260);
     p3d.style.transform = '';
     pk.style.setProperty('--ts', dir);
     pk.classList.remove('dragging');
@@ -371,6 +377,7 @@ async function startOpen(set, region) {
     if (opening) return;
     const b = pk.getBoundingClientRect();
     if ((e.clientY - b.top) / b.height > .34) return;        // le geste commence dans la partie haute
+    SND.unlock(); SND.dragStart();
     tearing = true; tx0 = e.clientX; tid = e.pointerId;
     try { pk.setPointerCapture(tid); } catch {}
     pk.classList.add('dragging');
@@ -381,14 +388,14 @@ async function startOpen(set, region) {
     const b = pk.getBoundingClientRect();
     const dx = e.clientX - tx0, p = Math.min(1, Math.abs(dx) / (b.width * .85));
     const s = dx >= 0 ? 1 : -1;
-    setTear(p, s);
+    setTear(p, s); SND.dragSet(p);
     const stepNo = Math.floor(p * 6);
     if (stepNo !== lastTick) { lastTick = stepNo; if (navigator.vibrate) { try { navigator.vibrate(6); } catch {} } }
     if (p >= 1) { tearing = false; doOpen(s); }
   });
   const end = () => {
     if (!tearing) return;
-    tearing = false; lastTick = 0;
+    tearing = false; lastTick = 0; SND.dragStop();
     pk.classList.remove('dragging');                          // relâché trop tôt : le haut se repose
     setTear(0, +pk.style.getPropertyValue('--ts') || 1);
   };
@@ -423,6 +430,7 @@ function revealStep(stage, set, data, results, i, close) {
     $('#skip', stage).onclick = (e) => { e.stopPropagation(); cur.skip = true; summary(stage, set, data, results, close); };
   }
   const cur = (stage._cur = { skip: false });
+  SND.card(tier);
   $('#cnt', stage).textContent = `${i + 1} / ${results.length}`;
   [...$('#dots', stage).children].forEach((d, k) => d.classList.toggle('d', k < i));
   $('#rbox', stage).innerHTML = `
@@ -430,7 +438,7 @@ function revealStep(stage, set, data, results, i, close) {
     <div class="glow ${tier >= 2 ? 'on' : ''}" style="--gc:${gc}"></div>
     <div class="reveal ${tier >= 2 ? 'hot' : ''}" id="rv" style="--gc:${gc}">
       <div class="tiltwrap"><div class="flipper enter ${i === 0 ? 'first' : ''}" id="fl">
-        <div class="face front">${cardHtml(r.card, r.r, { big: true, fx: true })}</div>
+        <div class="face front">${cardHtml(r.card, r.r, { big: true, fx: true, code: r.c })}</div>
       </div></div>
     </div>`;
   const rv = $('#rv', stage), hint = $('#hint', stage);
@@ -475,7 +483,7 @@ function summary(stage, set, data, results, close) {
   stage.onclick = null;
   stage.innerHTML = `${stageBg()}
     <div class="top"><span>${esc(set.n)}</span><button class="x" id="cl" aria-label="Fermer">✕</button></div>
-    <div class="sumgrid"><div class="grid">${results.map((x) => `<div class="slot ${rarityInfo(x.r).tier ? 't' + Math.min(7, rarityInfo(x.r).tier) : ''}">${cardHtml(x.card, x.r, { showName: false, gem: true, fx: true })}<div class="code">${x.isNew ? '<b style="color:var(--brass-hi)">Nouveau</b> · ' : `<b style="color:#c9ced8">Double ×${x.n}</b> · `}${esc(x.c)}</div></div>`).join('')}</div></div>
+    <div class="sumgrid"><div class="grid">${results.map((x) => `<div class="slot ${rarityInfo(x.r).tier ? 't' + Math.min(7, rarityInfo(x.r).tier) : ''}">${cardHtml(x.card, x.r, { showName: false, gem: true, fx: true, code: x.c })}<div class="code">${x.isNew ? '<b style="color:var(--brass-hi)">Nouveau</b> · ' : `<b style="color:#c9ced8">Double ×${x.n}</b> · `}${esc(x.c)}</div></div>`).join('')}</div></div>
     <div class="hint" style="margin-top:18px"><b>${results.filter((x) => x.isNew).length} nouvelle(s) carte(s), ${results.filter((x) => !x.isNew).length} double(s)</b>Meilleure : ${esc(best.card.n)} (${esc(rarityInfo(best.r).label)})</div>
     <div class="row" style="width:100%;max-width:540px;margin-top:8px">
       <button class="btn ghost grow" id="back">Terminer</button>
@@ -545,16 +553,53 @@ function hydrateBoosters(root, getSet) {
 }
 
 
+
+// ---------- Visuels de cartes dans la langue de la version (Yugipedia), repli sur l'image anglaise ----------
+const IMGRG = { FR: 'FR', F: 'FR', DE: 'DE', G: 'DE', IT: 'IT', I: 'IT', PT: 'PT', P: 'PT', SP: 'SP', S: 'SP' };
+const RAR_ABBR = { common: ['C'], short_print: ['SP', 'C'], rare: ['R'], super_rare: ['SR'], ultra_rare: ['UR'], secret_rare: ['ScR'], ultimate_rare: ['UtR'], ghost_rare: ['GR'], gold_rare: ['GUR'], platinum_rare: ['PlR'], parallel_rare: ['PR'], starlight_rare: ['StR'], mosaic_rare: ['MSR'], shatterfoil: ['SFR'], starfoil: ['SF'], premium_gold: ['PGR'], gold_secret: ['GScR'], collectors_rare: ['CR'], prismatic_secret_rare: ['PScR'], ultra_secret_rare: ['UScR'] };
+const frMem = new Map();
+let frActive = 0; const frQueue = [];
+const frRun = () => { while (frActive < 3 && frQueue.length) { const f = frQueue.shift(); frActive++; f().finally(() => { frActive--; frRun(); }); } };
+function frArt(en, code, rar) {
+  const k = en + '|' + code + '|' + rar;
+  if (frMem.has(k)) return frMem.get(k);
+  const pr = new Promise((res) => frQueue.push(async () => {
+    try {
+      const name = en.replace(/[^A-Za-z0-9]/g, ''), set = code.split('-')[0], rg = IMGRG[regionOf(code)];
+      const j = await (await fetch(`${YPI}&ailimit=60&aiprefix=${encodeURIComponent(name + '-' + set + '-' + rg + '-')}`)).json();
+      const list = (j.query?.allimages || []).map((im) => ({ n: String(im.name).replace(/_/g, ' ').replace(/ /g, ''), url: im.url }))
+        .filter((x) => /\.(png|jpe?g)$/i.test(x.n) && !/-(OP|OW|Reprint)\./i.test(x.n));
+      const abbr = (RAR_ABBR[rar] || []).map((s) => s.toLowerCase());
+      const part = (x) => x.n.slice((name + '-' + set + '-' + rg + '-').length).replace(/\.[a-z]+$/i, '').toLowerCase().split('-');
+      const best = list.find((x) => abbr.includes(part(x)[0]) && /^(1e|ue|)$/.test(part(x)[1] || '')) || list.find((x) => abbr.includes(part(x)[0])) || list.find((x) => part(x)[0] === 'c') || list[0];
+      res(best ? best.url : null);
+    } catch (e) { res(null); }
+  }));
+  frMem.set(k, pr); frRun();
+  return pr;
+}
+function hydrateFr(root) {
+  root.querySelectorAll('.card[data-fr]:not([data-frd])').forEach((c) => {
+    c.dataset.frd = '1';
+    const [en, code, rar] = c.dataset.fr.split('|');
+    if (!en) return;
+    frArt(en, code, rar).then((u) => { if (u) c.querySelectorAll('img').forEach((im) => { im.src = u; }); });
+  });
+}
+new MutationObserver(() => hydrateFr(document)).observe(document.body, { childList: true, subtree: true });
+
 // ---------- Versions régionales d'une carte (EN = Amérique, E/EU = Europe, FR, DE...) ----------
-const REGIONS = { EN: 'Amérique', E: 'Europe', EU: 'Europe', AE: 'Asie (EN)', FR: 'France', F: 'France', DE: 'Allemagne', G: 'Allemagne', IT: 'Italie', I: 'Italie', SP: 'Espagne', S: 'Espagne', PT: 'Portugal', P: 'Portugal', JP: 'Japon', J: 'Japon', KR: 'Corée', K: 'Corée', SC: 'Chine', TC: 'Taïwan', AU: 'Australie', NA: 'Amérique' };
-const REGION_ORDER = ['EN', 'NA', 'E', 'EU', 'AE', 'AU', 'FR', 'F', 'DE', 'G', 'IT', 'I', 'SP', 'S', 'PT', 'P', 'JP', 'J', 'KR', 'K', 'SC', 'TC'];
-const regionOf = (code) => { const m = /-([A-Z]+)\d/.exec(code || ''); return m ? m[1] : (/-\d/.test(code || '') ? 'FR' : 'EN'); };
+const REGIONS = { EN: 'Américaine', EU: 'Anglaise (Royaume-Uni)', AE: 'Asie (EN)', FR: 'France', DE: 'Allemagne', IT: 'Italie', SP: 'Espagne', PT: 'Portugal', JP: 'Japon', KR: 'Corée', SC: 'Chine', TC: 'Taïwan', AU: 'Australie' };
+const OPEN_REGIONS = ['EN', 'EU', 'FR', 'DE', 'IT', 'SP', 'PT'];
+const REGION_ORDER = ['EN', 'EU', 'AE', 'AU', 'FR', 'DE', 'IT', 'SP', 'PT', 'JP', 'KR', 'SC', 'TC'];
+const CANON = { NA: 'EN', E: 'EU', F: 'FR', G: 'DE', I: 'IT', S: 'SP', P: 'PT', J: 'JP', K: 'KR' };
+const regionOf = (code) => { const m = /-([A-Z]+)\d/.exec(code || ''); const r = m ? m[1] : (/-\d/.test(code || '') ? 'FR' : 'EN'); return CANON[r] || r; };
 const regionList = (pool) => [...new Set(pool.map((p) => regionOf(p.c)))].sort((a, b) => { const ia = REGION_ORDER.indexOf(a), ib = REGION_ORDER.indexOf(b); return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib) || a.localeCompare(b); });
 const LANGS = { FR: 'fr', F: 'fr', DE: 'de', G: 'de', IT: 'it', I: 'it', PT: 'pt', P: 'pt' };
 const localize = async (setName, cards, region) => {
   const lg = LANGS[region]; if (!lg) return cards;
   const L = await getSetLang(setName, lg); if (!Object.keys(L).length) return cards;
-  const o = {}; for (const id in cards) o[id] = L[id] ? { ...cards[id], n: L[id].n, x: L[id].x || cards[id].x } : cards[id];
+  const o = {}; for (const id in cards) o[id] = L[id] ? { ...cards[id], en: cards[id].en || cards[id].n, n: L[id].n, x: L[id].x || cards[id].x } : cards[id];
   return o;
 };
 const mainPool = (pool) => { const r = regionList(pool)[0]; return pool.filter((p) => regionOf(p.c) === r); };
@@ -596,7 +641,8 @@ async function drawSetCollection() {
   const qOf = (e) => S.col[e.k] || 0;
   const regs = regionList(ent.map((e) => e.p));
   if (!regs.includes(colFilter.reg)) colFilter.reg = regs[0];
-  const regOwn = (r) => ent.filter((e) => regionOf(e.p.c) === r && qOf(e)).length;
+  const entAll = ent;
+  const regOwn = (r) => entAll.filter((e) => regionOf(e.p.c) === r && qOf(e)).length;
   ent = ent.filter((e) => regionOf(e.p.c) === colFilter.reg);
   if (LANGS[colFilter.reg]) {
     const dm = Object.fromEntries(datas), loc = {};
@@ -632,7 +678,7 @@ async function drawSetCollection() {
     <div class="grid" id="grid">${list.map((e, i) => {
       const q = qOf(e);
       return `<button class="slot ${q ? '' : 'missing'}" data-i="${i}" aria-label="${esc(e.card.n)}">
-        ${q > 1 ? `<span class="qty">x${q}</span>` : ''}${cardHtml(e.card, e.p.r, { showName: false, gem: !!q })}<div class="code">${esc(e.p.c)}</div></button>`;
+        ${q > 1 ? `<span class="qty">x${q}</span>` : ''}${cardHtml(e.card, e.p.r, { showName: false, gem: !!q, code: e.p.c })}<div class="code">${esc(e.p.c)}</div></button>`;
     }).join('')}</div>${list.length ? '' : '<div class="empty">Aucune carte avec ce filtre.</div>'}`;
   const rg = $('#regchips'); if (rg) rg.onclick = (ev) => { const g = ev.target.closest('[data-g]'); if (g) { colFilter.reg = g.dataset.g; colFilter.rarity = 'all'; drawSetCollection(); } };
   $('#rchips').onclick = (ev) => { const r = ev.target.dataset.r; if (r) { colFilter.rarity = r; drawSetCollection(); } };
@@ -743,7 +789,7 @@ function openSheet(card, p, qty, favKey) {
   const isFav = () => S.fav.some((f) => f.k === favKey);
   const meta = rarityInfo(p.r);
   ov.hidden = false;
-  const front = qty ? cardHtml(card, p.r, { big: true, fx: true }) : cardHtml(card, p.r, { big: true }).replace('class="card', 'style="filter:grayscale(1) brightness(.4)" class="card');
+  const front = qty ? cardHtml(card, p.r, { big: true, fx: true, code: p.c }) : cardHtml(card, p.r, { big: true, code: p.c }).replace('class="card', 'style="filter:grayscale(1) brightness(.4)" class="card');
   ov.innerHTML = `<div class="sheet" id="sh">
     <div class="spinbox" id="sbox"><div class="body3d" id="b3d">
       <div class="face front">${front}</div>
@@ -872,3 +918,13 @@ function renderProfile() {
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 document.addEventListener('visibilitychange', () => { if (!document.hidden && tab === 'home') renderHome(); });
 go('home');
+
+// bouton son (visible pendant une ouverture)
+(() => {
+  const b = document.createElement('button');
+  b.id = 'sndbtn'; b.type = 'button';
+  const paint = () => { b.textContent = SND.isMuted() ? '🔇' : '🔊'; b.setAttribute('aria-label', SND.isMuted() ? 'Activer le son' : 'Couper le son'); };
+  paint();
+  b.onclick = () => { SND.setMuted(!SND.isMuted()); SND.unlock(); paint(); };
+  document.body.appendChild(b);
+})();
