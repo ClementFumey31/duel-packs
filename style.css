@@ -932,3 +932,25 @@ body { background-size: auto, 288px 360px, auto; }
 .pk .packimg { object-fit: fill; }
 .pk { background: none; box-shadow: none; }
 .pack.noimg .pk.bot, .pack.noimg .pk.topc { background: linear-gradient(160deg, #3a3a40, #1a1a1d 60%, #0a0a0b); }
+
+/* V13 — Secret Rare réaliste (foil arc-en-ciel doux sur art + nom) et fin du scintillement agressif */
+@keyframes foilmove { from { background-position: 0% 0, 0% 0; } to { background-position: 0 0, 100% 0; } }
+@keyframes twinkle { 0%, 100% { opacity: .5; } 50% { opacity: 1; } }
+@keyframes glit { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
+.card[data-fx="engraved"] .fx { opacity: 1; }
+.card[data-fx="engraved"] .fx img { filter: saturate(1.25) contrast(1.05) brightness(1.08); }
+.card[data-fx="engraved"] .fx::after { opacity: .62; mix-blend-mode: normal; background:
+  repeating-linear-gradient(135deg, #0000 0 5px, #ffffff1c 5px 6px),
+  linear-gradient(115deg, #ff4fa8aa, #ffc24aaa, #4affa0aa, #4ab8ffaa, #a84affaa);
+  background-size: auto, 220% 100%; animation: foilmove 7s ease-in-out infinite alternate; }
+.card[data-fx="engraved"] .fxn { opacity: 1; }
+.card[data-fx="engraved"] .fxn::after { opacity: .75; background: linear-gradient(115deg, #ff4fa8bb, #ffc24abb, #4affa0bb, #4ab8ffbb, #a84affbb);
+  background-size: 220% 100%; animation: foilmove 7s ease-in-out infinite alternate; }
+.card[data-fx="engraved"] .spk, .card[data-fx="engraved"] .spk::before, .card[data-fx="engraved"] .spk::after { animation: none; }
+.card[data-fx="engraved"] .spk { opacity: .55; }
+.card[data-fx="engraved"] .spk::before { opacity: .4; }
+.card[data-fx="engraved"] .spk::after { opacity: .3; }
+.card[data-fx="full_foil"] .spk, .card[data-fx="grandmaster"] .spk { animation-duration: 3.4s; }
+.card[data-fx="gold"] .spk { animation-duration: 3.6s; }
+.card[data-fx="engraved"] .spk { opacity: .22; } .card[data-fx="engraved"] .spk::before { opacity: .16; } .card[data-fx="engraved"] .spk::after { opacity: .14; }
+.card[data-fx="engraved"] .fx::after { opacity: .78; }
