@@ -6,7 +6,7 @@ let S = loadState();
 let tab = 'home';
 let setFilter = { q: '', sort: 'new' };
 let colSet = null;
-let colFilter = { own: 'all', rarity: 'all' };
+let colFilter = { own: 'all', rarity: 'all', sort: 'num', dir: 1 };
 let timerId = null;
 let heroTimer = null;
 
@@ -184,11 +184,12 @@ async function renderSets() {
       const own = S.tot[s.n] ? Object.keys(S.col).filter((k) => k.startsWith(s.n + '||')).length : 0;
       const pct = S.tot[s.n] ? Math.round((own / S.tot[s.n]) * 100) : null;
       return `<button class="tile" data-i="${setsCache.indexOf(s)}">
-        <div class="tile-img"><span>${esc(s.c)}</span><img src="${esc(boosterUrl(s))}" alt="" loading="lazy" decoding="async" onerror="this.remove()">${pct !== null ? `<i class="tile-pct">${pct}%</i>` : ''}</div>
+        <div class="tile-img"><span>${esc(s.c)}</span><img data-bs="${setsCache.indexOf(s)}" alt="" decoding="async">${pct !== null ? `<i class="tile-pct">${pct}%</i>` : ''}</div>
         <div class="tile-name">${esc(s.n)}</div>
         <div class="tile-meta">${s.d ? esc(s.d.slice(0, 4)) + ' · ' : ''}${s.k} cartes · ${packSizeFor(s.n, s.k)}/booster</div></button>`;
     }).join('')}</div>` : '<div class="empty">Aucune extension trouvée.</div>';
     document.querySelectorAll('.tile').forEach((b) => (b.onclick = () => startOpen(setsCache[+b.dataset.i])));
+    hydrateBoosters(document, (i) => setsCache[+i]);
   };
   $('#q').oninput = (e) => { setFilter.q = e.target.value; draw(); };
   $('#sort').onclick = (e) => {
@@ -278,7 +279,7 @@ async function startOpen(set) {
   S.tot[set.n] = data.pool.length;
 
   const close = () => { fxStop(); stage.remove(); go(tab === 'sets' ? 'sets' : tab); };
-  const face = `<img class="packimg" src="${esc(boosterUrl(set))}" alt="" onerror="this.remove();this.closest('.pack')&&this.closest('.pack').classList.add('noimg')"><img class="packsheen" src="${esc(boosterUrl(set))}" alt="" onerror="this.remove()"><span class="packlabel">${esc(set.n)}</span>`;
+  const face = `<img class="packimg" data-bs="0" alt=""><img class="packsheen" data-bs="0" alt=""><span class="packlabel">${esc(set.n)}</span>`;
   stage.innerHTML = `${stageBg()}
     <div class="top"><span id="stinfo"></span><button class="x" id="cl" aria-label="Fermer">✕</button></div>
     <div class="packstage" id="pstage"><div class="pack3d" id="p3d">
@@ -289,7 +290,8 @@ async function startOpen(set) {
   // le booster épouse le format réel de l'image
   const fi = $('.pk.bot .packimg', stage);
   const fit = () => { if (fi && fi.naturalWidth) $('#pack', stage).style.setProperty('--ar', Math.min(.95, Math.max(.42, fi.naturalWidth / fi.naturalHeight)).toFixed(3)); };
-  if (fi) { if (fi.complete) fit(); else fi.addEventListener('load', fit); }
+  if (fi) fi.addEventListener('load', fit);
+  hydrateBoosters(stage, () => set);
   $('#cl', stage).onclick = close;
   const info = () => ($('#stinfo', stage).textContent = `${tick().boosters} / ${MAX_BOOSTERS} boosters`);
   info();
@@ -326,7 +328,7 @@ async function startOpen(set) {
       const key = set.n + '||' + p.c + '||' + p.r;
       const isNew = !S.col[key];
       S.col[key] = (S.col[key] || 0) + 1;
-      return { ...p, card: data.cards[p.i], isNew };
+      return { ...p, card: data.cards[p.i], isNew, n: S.col[key] };
     });
     S.hist = [...results.slice().reverse().map((x) => ({ a: x.card.a, n: x.card.n, r: x.r })), ...S.hist].slice(0, 30);
     saveState(S);
@@ -418,7 +420,7 @@ function revealStep(stage, set, data, results, i, close) {
   const rv = $('#rv', stage), hint = $('#hint', stage);
   bindTilt(rv, 16);
   // nom, rareté et code visibles dès l'apparition de la carte
-  hint.innerHTML = `<div class="rarbadge t${Math.min(7, tier)}" data-fx="${meta.fx}" style="--gc:${gc}">${esc(meta.label)}</div><span class="cardname">${esc(r.card.n)}${r.isNew ? '<span class="new">Nouveau</span>' : ''}</span><span class="cardsub">${esc(r.c)}</span>`;
+  hint.innerHTML = `<div class="rarbadge t${Math.min(7, tier)}" data-fx="${meta.fx}" style="--gc:${gc}">${esc(meta.label)}</div><span class="cardname">${esc(r.card.n)}${r.isNew ? '<span class="new">Nouveau</span>' : `<span class="new dbl">Double ×${r.n}</span>`}</span><span class="cardsub">${esc(r.c)}</span>`;
 
   const celebrate = () => {
     if (!fx || cur.skip) return;
@@ -457,8 +459,8 @@ function summary(stage, set, data, results, close) {
   stage.onclick = null;
   stage.innerHTML = `${stageBg()}
     <div class="top"><span>${esc(set.n)}</span><button class="x" id="cl" aria-label="Fermer">✕</button></div>
-    <div class="sumgrid"><div class="grid">${results.map((x) => `<div class="slot ${rarityInfo(x.r).tier ? 't' + Math.min(7, rarityInfo(x.r).tier) : ''}">${cardHtml(x.card, x.r, { showName: false, gem: true, fx: true })}<div class="code">${x.isNew ? '<b style="color:var(--brass-hi)">Nouveau</b> · ' : ''}${esc(x.c)}</div></div>`).join('')}</div></div>
-    <div class="hint" style="margin-top:18px"><b>${results.filter((x) => x.isNew).length} nouvelle(s) carte(s)</b>Meilleure : ${esc(best.card.n)} (${esc(rarityInfo(best.r).label)})</div>
+    <div class="sumgrid"><div class="grid">${results.map((x) => `<div class="slot ${rarityInfo(x.r).tier ? 't' + Math.min(7, rarityInfo(x.r).tier) : ''}">${cardHtml(x.card, x.r, { showName: false, gem: true, fx: true })}<div class="code">${x.isNew ? '<b style="color:var(--brass-hi)">Nouveau</b> · ' : `<b style="color:#c9ced8">Double ×${x.n}</b> · `}${esc(x.c)}</div></div>`).join('')}</div></div>
+    <div class="hint" style="margin-top:18px"><b>${results.filter((x) => x.isNew).length} nouvelle(s) carte(s), ${results.filter((x) => !x.isNew).length} double(s)</b>Meilleure : ${esc(best.card.n)} (${esc(rarityInfo(best.r).label)})</div>
     <div class="row" style="width:100%;max-width:540px;margin-top:8px">
       <button class="btn ghost grow" id="back">Terminer</button>
       <button class="btn grow" id="again" ${S.boosters <= 0 ? 'disabled' : ''}>Rouvrir (${S.boosters})</button>
@@ -466,6 +468,64 @@ function summary(stage, set, data, results, close) {
   $('#cl', stage).onclick = close;
   $('#back', stage).onclick = close;
   $('#again', stage).onclick = () => { fxStop(); stage.remove(); startOpen(set); };
+}
+
+
+// ---------- Images de boosters : fond blanc retiré proprement (remplissage depuis les bords, sans liseré) ----------
+const bsCache = new Map();
+const loadImg = (src, cors) => new Promise((res, rej) => { const i = new Image(); if (cors) i.crossOrigin = 'anonymous'; i.onload = () => res(i); i.onerror = rej; i.src = src; });
+function cleanBg(im) {
+  const sc = Math.min(1, 460 / Math.max(im.naturalWidth, im.naturalHeight));
+  const w = Math.max(1, Math.round(im.naturalWidth * sc)), h = Math.max(1, Math.round(im.naturalHeight * sc));
+  const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+  const cx = cv.getContext('2d', { willReadFrequently: true }); cx.drawImage(im, 0, 0, w, h);
+  const id = cx.getImageData(0, 0, w, h), d = id.data;
+  const bg = new Uint8Array(w * h), st = [];
+  const isW = (p) => { const o = p * 4; if (d[o + 3] < 16) return true; const mn = Math.min(d[o], d[o + 1], d[o + 2]), mx = Math.max(d[o], d[o + 1], d[o + 2]); return mn >= 226 && mx - mn < 28; };
+  const push = (p) => { if (!bg[p] && isW(p)) { bg[p] = 1; st.push(p); } };
+  for (let x = 0; x < w; x++) { push(x); push((h - 1) * w + x); }
+  for (let y = 0; y < h; y++) { push(y * w); push(y * w + w - 1); }
+  while (st.length) { const p = st.pop(), x = p % w; if (x > 0) push(p - 1); if (x < w - 1) push(p + 1); if (p >= w) push(p - w); if (p < w * (h - 1)) push(p + w); }
+  let x0 = w, y0 = h, x1 = 0, y1 = 0;
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const p = y * w + x, o = p * 4;
+    if (bg[p]) { d[o + 3] = 0; continue; }
+    const edge = (x > 0 && bg[p - 1]) || (x < w - 1 && bg[p + 1]) || (y > 0 && bg[p - w]) || (y < h - 1 && bg[p + w]);
+    if (edge) {
+      const mn = Math.min(d[o], d[o + 1], d[o + 2]);
+      const a = Math.max(0, Math.min(1, 1 - (mn - 170) / 85));
+      if (a < 1) { for (let c = 0; c < 3; c++) d[o + c] = Math.max(0, Math.min(255, (d[o + c] - 255 * (1 - a)) / Math.max(a, .05))); d[o + 3] = Math.round(a * d[o + 3]); }
+    }
+    if (d[o + 3] > 40) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+  }
+  if (x1 <= x0 || y1 <= y0) throw new Error('vide');
+  cx.putImageData(id, 0, 0);
+  const o2 = document.createElement('canvas'); o2.width = x1 - x0 + 1; o2.height = y1 - y0 + 1;
+  o2.getContext('2d').drawImage(cv, x0, y0, o2.width, o2.height, 0, 0, o2.width, o2.height);
+  return o2.toDataURL('image/png');
+}
+function boosterSrc(set) {
+  if (bsCache.has(set.c)) return bsCache.get(set.c);
+  const yp = `https://yugipedia.com/wiki/Special:FilePath/${encodeURIComponent(set.c)}-BoosterEN.png?width=480`;
+  const p = (async () => {
+    for (const u of [yp, boosterUrl(set)]) {
+      try { return cleanBg(await loadImg(u, true)); } catch (e) { /* CORS ou image absente */ }
+      try { await loadImg(u, false); return u; } catch (e) { /* image absente */ }
+    }
+    return null;
+  })();
+  bsCache.set(set.c, p);
+  return p;
+}
+function hydrateBoosters(root, getSet) {
+  root.querySelectorAll('img[data-bs]').forEach((img) => {
+    const set = getSet(img.dataset.bs);
+    boosterSrc(set).then((u) => {
+      if (u) { img.src = u; return; }
+      img.remove();
+      const pk = document.querySelector('.pack'); if (pk && !pk.querySelector('.packimg')) pk.classList.add('noimg');
+    });
+  });
 }
 
 // ---------- Collection ----------
@@ -479,40 +539,64 @@ function renderCollection() {
     startHero();
     return;
   }
-  if (!colSet || !sets.includes(colSet)) colSet = sets[0];
+  if (!colSet || (colSet !== '*' && !sets.includes(colSet))) colSet = sets[0];
   view.innerHTML = `
     ${banner([ICONIC.exodia, ICONIC.summonedSkull], 'Collection', `${uniq} cartes différentes, ${total} au total.`)}
-    <div class="chips" id="setchips">${sets.map((n) => `<button class="chip ${n === colSet ? 'on' : ''}" data-n="${esc(n)}">${esc(n)}</button>`).join('')}</div>
-    <div class="seg" id="own"><button data-o="all" class="${colFilter.own === 'all' ? 'on' : ''}">Toutes</button><button data-o="own" class="${colFilter.own === 'own' ? 'on' : ''}">Possédées</button><button data-o="miss" class="${colFilter.own === 'miss' ? 'on' : ''}">Manquantes</button></div>
+    <div class="chips" id="setchips"><button class="chip ${colSet === '*' ? 'on' : ''}" data-n="*">Tout</button>${sets.map((n) => `<button class="chip ${n === colSet ? 'on' : ''}" data-n="${esc(n)}">${esc(n)}</button>`).join('')}</div>
+    <div class="seg" id="own"><button data-o="all" class="${colFilter.own === 'all' ? 'on' : ''}">Toutes</button><button data-o="own" class="${colFilter.own === 'own' ? 'on' : ''}">Possédées</button><button data-o="miss" class="${colFilter.own === 'miss' ? 'on' : ''}">Manquantes</button><button data-o="dup" class="${colFilter.own === 'dup' ? 'on' : ''}">Doubles</button></div>
+    <div class="sortbar"><label>Trier par</label><select id="csort">${[['num', 'Numéro'], ['rar', 'Rareté'], ['name', 'Nom'], ['atk', 'ATK'], ['def', 'DEF'], ['lvl', 'Niveau'], ['type', 'Type'], ['attr', 'Attribut'], ['qty', 'Quantité'], ['set', 'Extension']].map(([v, l]) => `<option value="${v}" ${colFilter.sort === v ? 'selected' : ''}>${l}</option>`).join('')}</select><button class="chip" id="cdir" aria-label="Sens du tri">${colFilter.dir > 0 ? '↑ Croissant' : '↓ Décroissant'}</button></div>
     <div id="colbody"><div class="empty"><span class="spin"></span></div></div>`;
   startHero();
   $('#setchips').onclick = (e) => { const n = e.target.dataset.n; if (n) { colSet = n; colFilter.rarity = 'all'; renderCollection(); } };
   $('#own').onclick = (e) => { const o = e.target.dataset.o; if (o) { colFilter.own = o; renderCollection(); } };
+  $('#csort').onchange = (e) => { colFilter.sort = e.target.value; drawSetCollection(); };
+  $('#cdir').onclick = (e) => { colFilter.dir = -colFilter.dir; e.target.textContent = colFilter.dir > 0 ? '↑ Croissant' : '↓ Décroissant'; drawSetCollection(); };
   drawSetCollection();
 }
 
 async function drawSetCollection() {
   const body = $('#colbody');
-  let data;
-  try { data = await getSetData(colSet); } catch (e) { body.innerHTML = `<div class="err">Chargement impossible (${esc(e.message)}).</div>`; return; }
-  const key = (p) => colSet + '||' + p.c + '||' + p.r;
-  const ownN = data.pool.filter((p) => S.col[key(p)]).length;
-  const rars = [...new Set(data.pool.map((p) => p.r))].sort((a, b) => rarityInfo(a).tier - rarityInfo(b).tier);
-  let list = data.pool.filter((p) => (colFilter.rarity === 'all' || p.r === colFilter.rarity) &&
-    (colFilter.own === 'all' || (colFilter.own === 'own') === !!S.col[key(p)]));
+  const all = colSet === '*';
+  const names = all ? Object.keys(S.tot).filter((n) => Object.keys(S.col).some((k) => k.startsWith(n + '||'))) : [colSet];
+  let datas;
+  try { datas = await Promise.all(names.map(async (n) => [n, await getSetData(n)])); } catch (e) { body.innerHTML = `<div class="err">Chargement impossible (${esc(e.message)}).</div>`; return; }
+  let ent = [];
+  for (const [n, data] of datas) for (const p of data.pool) ent.push({ n, p, card: data.cards[p.i], k: n + '||' + p.c + '||' + p.r });
+  const qOf = (e) => S.col[e.k] || 0;
+  const ownN = ent.filter((e) => qOf(e)).length;
+  const rars = [...new Set(ent.map((e) => e.p.r))].sort((a, b) => rarityInfo(a).tier - rarityInfo(b).tier);
+  let list = ent.filter((e) => (colFilter.rarity === 'all' || e.p.r === colFilter.rarity) &&
+    (all ? qOf(e) > 0 : true) &&
+    (colFilter.own === 'all' || (colFilter.own === 'own' && qOf(e) > 0) || (colFilter.own === 'miss' && !qOf(e)) || (colFilter.own === 'dup' && qOf(e) > 1)));
+  const num = (v) => (v === null || v === undefined || v === '' ? null : +v);
+  const cmpNum = (x, y) => (x === null ? (y === null ? 0 : 1) : y === null ? -1 : x - y);
+  const cmp = {
+    num: (a, b) => a.p.c.localeCompare(b.p.c, 'en', { numeric: true }),
+    rar: (a, b) => rarityInfo(a.p.r).tier - rarityInfo(b.p.r).tier,
+    name: (a, b) => a.card.n.localeCompare(b.card.n),
+    atk: (a, b) => cmpNum(num(a.card.k), num(b.card.k)),
+    def: (a, b) => cmpNum(num(a.card.d), num(b.card.d)),
+    lvl: (a, b) => cmpNum(num(a.card.l), num(b.card.l)),
+    type: (a, b) => (a.card.t || '').localeCompare(b.card.t || '') || (a.card.r || '').localeCompare(b.card.r || ''),
+    attr: (a, b) => (a.card.e || 'zzz').localeCompare(b.card.e || 'zzz'),
+    qty: (a, b) => qOf(a) - qOf(b),
+    set: (a, b) => a.n.localeCompare(b.n),
+  }[colFilter.sort] || (() => 0);
+  list = list.map((e, i) => [e, i]).sort((x, y) => (cmp(x[0], y[0]) * colFilter.dir) || x[1] - y[1]).map((x) => x[0]);
+  const dups = ent.filter((e) => qOf(e) > 1).reduce((s, e) => s + qOf(e) - 1, 0);
   body.innerHTML = `
-    <div class="compl"><b>${ownN} / ${data.pool.length}</b><span>cartes de l’extension</span></div>
-    <div class="bar" style="margin-bottom:14px"><i style="width:${(ownN / data.pool.length) * 100}%"></i></div>
+    <div class="compl"><b>${all ? ownN + ' cartes' : ownN + ' / ' + ent.length}</b><span>${all ? 'toutes extensions · ' : 'cartes de l’extension · '}${dups} double${dups > 1 ? 's' : ''}</span></div>
+    <div class="bar" style="margin-bottom:14px"><i style="width:${all ? 100 : (ownN / Math.max(1, ent.length)) * 100}%"></i></div>
     <div class="chips" id="rchips"><button class="chip ${colFilter.rarity === 'all' ? 'on' : ''}" data-r="all">Toutes raretés</button>${rars.map((r) => `<button class="chip ${colFilter.rarity === r ? 'on' : ''}" data-r="${esc(r)}">${esc(rarityInfo(r).label)}</button>`).join('')}</div>
-    <div class="grid" id="grid">${list.map((p, i) => {
-      const q = S.col[key(p)] || 0;
-      return `<button class="slot ${q ? '' : 'missing'}" data-i="${i}" aria-label="${esc(data.cards[p.i].n)}">
-        ${q > 1 ? `<span class="qty">x${q}</span>` : ''}${cardHtml(data.cards[p.i], p.r, { showName: false, gem: !!q })}<div class="code">${esc(p.c)}</div></button>`;
+    <div class="grid" id="grid">${list.map((e, i) => {
+      const q = qOf(e);
+      return `<button class="slot ${q ? '' : 'missing'}" data-i="${i}" aria-label="${esc(e.card.n)}">
+        ${q > 1 ? `<span class="qty">x${q}</span>` : ''}${cardHtml(e.card, e.p.r, { showName: false, gem: !!q })}<div class="code">${esc(e.p.c)}</div></button>`;
     }).join('')}</div>${list.length ? '' : '<div class="empty">Aucune carte avec ce filtre.</div>'}`;
-  $('#rchips').onclick = (e) => { const r = e.target.dataset.r; if (r) { colFilter.rarity = r; drawSetCollection(); } };
+  $('#rchips').onclick = (ev) => { const r = ev.target.dataset.r; if (r) { colFilter.rarity = r; drawSetCollection(); } };
   document.querySelectorAll('#grid .slot').forEach((b) => (b.onclick = () => {
-    const p = list[+b.dataset.i];
-    openSheet(data.cards[p.i], p, S.col[key(p)] || 0, key(p));
+    const e = list[+b.dataset.i];
+    openSheet(e.card, e.p, qOf(e), e.k);
   }));
 }
 

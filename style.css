@@ -892,11 +892,11 @@ body { background-size: auto, 288px 360px, auto; }
 /* ---- Extensions : boosters sans cadre ni fond blanc ---- */
 .tile-img { background: none !important; border: 0 !important; box-shadow: none !important; overflow: visible; }
 .tile-img::after { display: none; }
-.tile-img img { filter: url(#nowhite) drop-shadow(0 12px 14px #000c); padding: 2%; transition: transform .35s var(--ease); }
+.tile-img img { filter: drop-shadow(0 12px 14px #000c); padding: 2%; transition: transform .35s var(--ease); }
 .tile:hover .tile-img, .tile:focus-visible .tile-img { transform: none; box-shadow: none !important; }
 .tile:hover .tile-img img, .tile:active .tile-img img { transform: translateY(-4px) scale(1.03); }
 .tile-pct { right: 4px; top: 2px; }
-.pk .packimg { filter: url(#nowhite); }
+.pk .packimg { }
 
 /* ---- Billes d'étoiles façon niveau de carte ---- */
 .stars { gap: 3px; padding: 8px 8px; }
@@ -921,12 +921,12 @@ body { background-size: auto, 288px 360px, auto; }
 @keyframes tflash { 0% { opacity: 0; } 20% { opacity: 1; } 100% { opacity: 0; } }
 
 /* fond transparent : plus aucune couche rectangulaire derrière ou sur le sachet */
-.tile-img img { filter: url(#nowhite); }
+
 .tile-img { filter: drop-shadow(0 12px 12px #000c); }
 .pk.back, .pk.slice, .pk.side { display: none !important; }
 .pk.bot::before, .pk.topc::before, .pk::after, .pglare { display: none !important; }
 .pk .packsheen { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: fill; pointer-events: none;
-  filter: url(#nowhite) brightness(2.3) contrast(1.1) saturate(1.2);
+  filter: brightness(2.3) contrast(1.1) saturate(1.2);
   -webkit-mask-image: linear-gradient(105deg, transparent 38%, #000 50%, transparent 62%); mask-image: linear-gradient(105deg, transparent 38%, #000 50%, transparent 62%);
   -webkit-mask-size: 260% 100%; mask-size: 260% 100%; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; animation: sweep 3.4s ease-in-out infinite; }
 .pk .packimg { object-fit: fill; }
@@ -1025,3 +1025,20 @@ body { background-size: auto, 288px 360px, auto; }
 .card[data-fx="engraved"] .spk::after { opacity: .5; }
 .card[data-fx="engraved"] .fx::after { opacity: .3; }
 .card[data-fx="engraved"] .spk { opacity: .65; }
+
+/* V16 — Secret : foil brillant en plus ; titre = lettres qui brillent (pas la zone) */
+.card[data-fx="engraved"] .fx::before { content: ""; position: absolute; inset: 0; z-index: 3;
+  background: linear-gradient(105deg, transparent 32%, #ffffff55 43%, #ffffffee 49%, #d6f6ffcc 52%, #ffe0f8aa 56%, transparent 68%) 0 0 / 260% 100% no-repeat; animation: sweepbg 3.4s ease-in-out infinite; }
+.card.tilting[data-fx="engraved"] .fx::before { animation: none; background-position: var(--mx) 0; }
+.card[data-fx="engraved"] .fxn::after { display: none; }
+.card[data-fx="engraved"] .fxn img { filter: url(#ltr-w) drop-shadow(0 0 1.2px #b8e6ff) saturate(1.6); }
+.card.lt[data-fx="engraved"] .fxn img { filter: url(#ltl-w) drop-shadow(0 0 1.2px #b8e6ff) saturate(1.6); }
+.card[data-fx="engraved"] .fxn { -webkit-mask-image: linear-gradient(105deg, transparent 38%, #000 50%, transparent 62%); mask-image: linear-gradient(105deg, transparent 38%, #000 50%, transparent 62%);
+  -webkit-mask-size: 180% 100%; mask-size: 180% 100%; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; animation: sweep 3.2s ease-in-out infinite; }
+.card.tilting[data-fx="engraved"] .fxn { animation: none; -webkit-mask-position: var(--mx) 0; mask-position: var(--mx) 0; }
+
+/* V16 — doubles + tri */
+.new.dbl { background: linear-gradient(100deg, #5a5e68, #c9ced8 50%, #5a5e68); color: #111; }
+.sortbar { display: flex; align-items: center; gap: 8px; margin: 10px 0 12px; }
+.sortbar label { font-size: 11px; letter-spacing: .08em; color: var(--mute, #9a9aa2); }
+.sortbar select { flex: 1; background: #0d0d0f; color: #e8e0c8; border: 1px solid #8a6d2a; border-radius: 999px; padding: 7px 12px; font: inherit; font-size: 12px; }
