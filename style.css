@@ -712,3 +712,89 @@ h2:has(.cnt)::after { order: 2; }
 .rarcard .card { transition: transform .12s ease-out; box-shadow: 0 10px 22px #000a; }
 .rarname { margin-top: 8px; font-family: var(--title); font-weight: 700; font-size: 12px; letter-spacing: .04em; color: var(--gold-hi); }
 .rarsub { font-size: 10px; color: var(--mute); }
+
+/* =====================================================================
+   V10 : Secret = titre + image seulement, reflets multicolores ;
+   Gold = cadre doré + brillance dorée ; Ultimate = reflets argentés mats ;
+   épaisseur des cartes ; booster en volume
+   ===================================================================== */
+/* ---- Secret : paillettes et reflets arc-en-ciel limités au titre et à l'image ---- */
+.card[data-fx="engraved"] .spk { inset: auto; left: 0; right: 0; top: 0; bottom: 0;
+  -webkit-mask: linear-gradient(#000, #000) 6% 3.6% / 88% 6.6% no-repeat, linear-gradient(#000, #000) 11.9% 18.1% / 76.2% 52.3% no-repeat;
+  mask: linear-gradient(#000, #000) 6% 3.6% / 88% 6.6% no-repeat, linear-gradient(#000, #000) 11.9% 18.1% / 76.2% 52.3% no-repeat; }
+.card[data-fx="engraved"] .spk { background: radial-gradient(circle, #fff 0 .9px, transparent 1.6px) 0 0 / 11px 13px, radial-gradient(circle, #ff9bf0 0 .8px, transparent 1.5px) 5px 7px / 9px 15px; }
+.card[data-fx="engraved"] .spk::before { background: radial-gradient(circle, #9bf0ff 0 1.1px, transparent 2px) 0 0 / 17px 19px, radial-gradient(circle, #fff3a0 0 .9px, transparent 1.6px) 8px 9px / 13px 21px; }
+.card[data-fx="engraved"] .spk::after { background: radial-gradient(circle, #fff 0 1.4px, transparent 2.4px) 0 0 / 27px 29px, radial-gradient(circle, #a8ffc8 0 1.1px, transparent 2px) 13px 14px / 23px 31px; }
+.card[data-fx="engraved"] .fx::after { opacity: .9; background: repeating-linear-gradient(45deg, #0000 0 4px, #ffffff2e 4px 5px), linear-gradient(115deg, #ff2a8a88, #ffb82a88, #2aff9488, #2ab8ff88, #b02aff88, #ff2a8a88); background-size: auto, 300% 100%; animation: rainbow 4s linear infinite; }
+@keyframes rainbow { from { background-position: 0 0, 0% 0; } to { background-position: 0 0, 300% 0; } }
+.card[data-fx="engraved"] .fxn { opacity: 1; }
+.card[data-fx="engraved"] .fxn::after { content: ""; position: absolute; inset: 0; background: linear-gradient(115deg, #ff2a8a99, #ffb82a99, #2aff9499, #2ab8ff99, #b02aff99, #ff2a8a99); background-size: 300% 100%; animation: rainbow 4s linear infinite; }
+.card[data-fx="engraved"] .fxn img { filter: brightness(1.6) saturate(1.8); }
+
+/* ---- Gold : cadre doré métallique + brillance dorée ---- */
+.card[data-fx="gold"] .fx { opacity: 1; -webkit-mask-image: linear-gradient(105deg, transparent 38%, #000 50%, transparent 62%); mask-image: linear-gradient(105deg, transparent 38%, #000 50%, transparent 62%); -webkit-mask-size: 260% 100%; mask-size: 260% 100%; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; animation: sweep 3.2s ease-in-out infinite; }
+.card[data-fx="gold"] .fx img { filter: sepia(1) saturate(3.2) brightness(2) hue-rotate(-6deg); }
+.card[data-fx="gold"] .fxn { opacity: 1; -webkit-mask-image: linear-gradient(105deg, transparent 38%, #000 50%, transparent 62%); mask-image: linear-gradient(105deg, transparent 38%, #000 50%, transparent 62%); -webkit-mask-size: 180% 100%; mask-size: 180% 100%; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; animation: sweep 3.2s .2s ease-in-out infinite; }
+.card[data-fx="gold"] .fxn img { filter: url(#ltr-g); }
+.card.lt[data-fx="gold"] .fxn img { filter: url(#ltl-g); }
+.card[data-fx="gold"] .fxa { opacity: 1; border-radius: inherit; padding: 3.4%; background: linear-gradient(135deg, #fff2b0, #d9a62e 28%, #8a5f12 50%, #f6d77a 72%, #a87418); background-size: 220% 220%; animation: goldmove 4s ease-in-out infinite alternate;
+  -webkit-mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0); mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0); }
+.card[data-fx="gold"] .fxa img { display: none; }
+@keyframes goldmove { to { background-position: 100% 100%; } }
+.card.tilting[data-fx="gold"] .fx, .card.tilting[data-fx="gold"] .fxn { animation: none !important; -webkit-mask-position: var(--mx) 0; mask-position: var(--mx) 0; }
+.card[data-fx="gold"] .glare { background: radial-gradient(circle at var(--mx) var(--my), #ffe9a066, transparent 45%); }
+.card[data-fx="gold"] .spk { opacity: .8; animation: twinkle 2.2s ease-in-out infinite; background: radial-gradient(circle at 20% 30%, #ffe9a0 0 1.4px, transparent 2.6px), radial-gradient(circle at 70% 55%, #fff 0 1.2px, transparent 2.4px), radial-gradient(circle at 45% 80%, #ffe9a0 0 1.5px, transparent 2.7px), radial-gradient(circle at 85% 20%, #fff 0 1.2px, transparent 2.4px); }
+
+/* ---- Ultimate : relief mat, reflets argentés ---- */
+.card[data-fx="embossed"] .fxa { opacity: 1; background: repeating-linear-gradient(135deg, #ffffff14 0 1px, #0000001c 1px 3px); }
+.card[data-fx="embossed"] .fxa img { display: none; }
+.card[data-fx="embossed"] .fxa::after { content: ""; position: absolute; inset: 0; background: radial-gradient(ellipse at var(--mx, 50%) var(--my, 30%), #d8dce6aa, transparent 55%); opacity: .6; }
+.card[data-fx="embossed"] .fxa::before { background: linear-gradient(105deg, transparent 22%, #cfd4deaa 40%, #f4f6faee 50%, #cfd4deaa 60%, transparent 78%) 0 0 / 260% 100% no-repeat; animation: sweepbg 4.2s ease-in-out infinite; }
+.card.tilting[data-fx="embossed"] .fxa::before { animation: none; background-position: var(--mx) 0; }
+
+/* ---- Épaisseur des cartes ---- */
+:root { --ct: 5px; }
+.edge { position: absolute; pointer-events: none; background: linear-gradient(90deg, #f4f0e6, #bdb6a4); }
+.edge.l, .edge.r { top: 2.2%; bottom: 2.2%; width: var(--ct); }
+.edge.t, .edge.b { left: 3.2%; right: 3.2%; height: var(--ct); }
+.edge.l { left: 0; transform-origin: 0 50%; transform: translateZ(calc(var(--ct) / 2)) rotateY(90deg); }
+.edge.r { right: 0; transform-origin: 100% 50%; transform: translateZ(calc(var(--ct) / 2)) rotateY(-90deg); }
+.edge.t { top: 0; transform-origin: 50% 0; transform: translateZ(calc(var(--ct) / 2)) rotateX(-90deg); }
+.edge.b { bottom: 0; transform-origin: 50% 100%; transform: translateZ(calc(var(--ct) / 2)) rotateX(90deg); }
+.spinbox .face.front { transform: translateZ(calc(var(--ct) / 2)); }
+.spinbox .face.back { transform: rotateY(180deg) translateZ(calc(var(--ct) / 2)); }
+.flipper .face.front { transform: translateZ(calc(var(--ct) / 2)); }
+.flipper { transform-style: preserve-3d; }
+
+/* ---- Booster en volume : tranches empilées, reflet spéculaire qui suit le doigt ---- */
+.pack { --thick: 24px; }
+.pk.slice { clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%); background: linear-gradient(90deg, #7a7a88, #e4e4ee 30%, #9a9aa8 70%, #6a6a78); transform: translateZ(calc(var(--thick) / 2 - var(--k) * var(--thick) / 6)); filter: none; }
+.pk.slice::after, .pk.slice::before { display: none; }
+.pack.tear .pk.slice { clip-path: polygon(0 12%, 100% 12%, 100% 100%, 0 100%); }
+.pglare { opacity: .38; }
+.pfloor { box-shadow: 0 0 60px 14px #ff2a3d22; }
+
+/* ---- Ouverture : seule la partie haute est éjectée ---- */
+.pack.tear .pk.bot, .pack.tear .pk.back, .pack.tear .pk.side { animation: none; opacity: 1; }
+.pack.tear .pk.topc { animation: eject .62s cubic-bezier(.2, .7, .3, 1) forwards; }
+@keyframes eject {
+  0% { transform: translateZ(12px) rotateX(-16deg) rotate(calc(var(--ts) * 6deg)) translateY(-8px); opacity: 1; }
+  100% { transform: translate3d(calc(var(--ts) * 70px), -340px, 180px) rotateX(-160deg) rotateZ(calc(var(--ts) * 55deg)); opacity: 0; }
+}
+.pack.tear .burst { animation: burstgo 1s ease-out; }
+.pack.tear::after { content: ""; position: absolute; left: 6%; right: 6%; top: 8%; height: 40%; background: linear-gradient(0deg, transparent, #fff8c8aa 60%, #fff 100%); filter: blur(10px); opacity: 0; animation: beam 1s .12s ease-out forwards; pointer-events: none; transform: translateZ(14px); }
+@keyframes beam { 0% { opacity: 0; transform: translateZ(14px) scaleY(.2); } 40% { opacity: .95; } 100% { opacity: 0; transform: translateZ(14px) scaleY(1.6) translateY(-30px); } }
+
+/* ---- Rareté mise en valeur ---- */
+.rarbadge { display: inline-flex; align-items: center; gap: 10px; margin: 0 0 8px; padding: 7px 20px; border: 1px solid var(--gc); border-radius: 999px; background: #050102d9; font-family: var(--title); font-weight: 900; font-size: 18px; letter-spacing: .14em; text-transform: uppercase; color: #fff; text-shadow: 0 0 12px var(--gc), 0 0 26px var(--gc); box-shadow: 0 0 18px var(--gc), inset 0 0 14px #ffffff12; animation: badgein .45s cubic-bezier(.2, 1.4, .4, 1) both; }
+.rarbadge::before, .rarbadge::after { content: ""; width: 9px; height: 9px; background: var(--gc); transform: rotate(45deg); box-shadow: 0 0 10px var(--gc); }
+.rarbadge.t0 { font-size: 13px; padding: 5px 16px; box-shadow: none; text-shadow: none; color: #bbb; border-color: #ffffff30; }
+.rarbadge.t0::before, .rarbadge.t0::after { display: none; }
+.rarbadge.t1 { font-size: 15px; }
+.rarbadge.t6, .rarbadge.t7 { font-size: 21px; background: linear-gradient(90deg, #ff2a8a55, #ffb82a55, #2aff9455, #2ab8ff55, #b02aff55); }
+@keyframes badgein { from { opacity: 0; transform: translateY(12px) scale(.7); } to { opacity: 1; transform: none; } }
+.hint .cardname { display: block; font-family: var(--title); font-size: 15px; color: #fff; margin-top: 2px; }
+.hint .cardsub { font-size: 11px; color: var(--mute); }
+.hint b.nm { display: none; }
+.card[data-fx="embossed"] .fxa::before { background: linear-gradient(105deg, transparent 26%, #cfd4de55 41%, #eef1f6aa 50%, #cfd4de55 59%, transparent 74%) 0 0 / 260% 100% no-repeat; }
+.card[data-fx="embossed"] .fxa::after { opacity: .3; }

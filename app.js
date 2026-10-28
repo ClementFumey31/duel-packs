@@ -47,6 +47,7 @@ function cardHtml(card, rarity, { big = false, showName = true, badge = false, g
     ${showName ? `<div class="cname">${esc(card.n)}</div>` : '<div class="cname"></div>'}
   </div>`;
 }
+const EDGES = '<i class="edge l"></i><i class="edge r"></i><i class="edge t"></i><i class="edge b"></i>';
 // Dos de carte : dessin d'origine, remplacé par "cardback.png" s'il est présent à côté de index.html
 const backHtml = () => `<div class="cback"><div class="cb-art"></div><img class="cb-img" src="cardback.png" alt="" onerror="this.remove()"></div>`;
 
@@ -290,7 +291,7 @@ async function startOpen(set) {
   stage.innerHTML = `${stageBg()}
     <div class="top"><span id="stinfo"></span><button class="x" id="cl" aria-label="Fermer">✕</button></div>
     <div class="packstage" id="pstage"><div class="pack3d" id="p3d">
-      <button class="pack" id="pack" aria-label="Ouvrir le booster"><span class="pk side l"></span><span class="pk side r"></span><span class="pk back"></span><span class="pk bot">${face}</span><span class="pk topc">${face}</span><i class="tearguide"></i><i class="tearline"></i><i class="burst"></i></button>
+      <button class="pack" id="pack" aria-label="Ouvrir le booster"><span class="pk side l"></span><span class="pk side r"></span><span class="pk back"></span>${[1, 2, 3, 4, 5].map((k) => `<span class="pk slice" style="--k:${k}"></span>`).join('')}<span class="pk bot">${face}</span><span class="pk topc">${face}</span><i class="tearguide"></i><i class="tearline"></i><i class="burst"></i></button>
       <div class="pglare"></div></div></div>
     <div class="pfloor"></div>
     <div class="hint" id="hint"><b>Déchire le booster</b>glisse le doigt le long du haut</div>`;
@@ -309,7 +310,7 @@ async function startOpen(set) {
     if (opening || tearing) return;
     const b = pst.getBoundingClientRect();
     const px = Math.min(1, Math.max(0, (e.clientX - b.left) / b.width)), py = Math.min(1, Math.max(0, (e.clientY - b.top) / b.height));
-    p3d.style.transform = `rotateY(${(px - .5) * 34}deg) rotateX(${(.5 - py) * 24}deg)`;
+    p3d.style.transform = `rotateY(${(px - .5) * 56}deg) rotateX(${(.5 - py) * 36}deg)`;
     p3d.style.setProperty('--gx', px * 100 + '%'); p3d.style.setProperty('--gy', py * 100 + '%');
     $('.pglare', p3d).style.setProperty('--gx', px * 100 + '%'); $('.pglare', p3d).style.setProperty('--gy', py * 100 + '%');
   };
@@ -411,13 +412,13 @@ function revealStep(stage, set, data, results, i, close) {
     <div class="glow ${tier >= 2 ? 'on' : ''}" style="--gc:${gc}"></div>
     <div class="reveal ${tier >= 2 ? 'hot' : ''}" id="rv" style="--gc:${gc}">
       <div class="tiltwrap"><div class="flipper enter" id="fl">
-        <div class="face front">${cardHtml(r.card, r.r, { big: true, fx: true })}</div>
+        <div class="face front">${cardHtml(r.card, r.r, { big: true, fx: true })}</div>${EDGES}
       </div></div>
     </div>`;
   const rv = $('#rv', stage), hint = $('#hint', stage);
   bindTilt(rv, 16);
   // nom, rareté et code visibles dès l'apparition de la carte
-  hint.innerHTML = `<b>${esc(r.card.n)}</b>${esc(meta.label)}${r.isNew ? '<span class="new">Nouveau</span>' : ''} · ${esc(r.c)}`;
+  hint.innerHTML = `<div class="rarbadge t${Math.min(7, tier)}" style="--gc:${gc}">${esc(meta.label)}</div><span class="cardname">${esc(r.card.n)}${r.isNew ? '<span class="new">Nouveau</span>' : ''}</span><span class="cardsub">${esc(r.c)}</span>`;
 
   const celebrate = () => {
     if (!fx || cur.skip) return;
@@ -620,7 +621,7 @@ function openSheet(card, p, qty, favKey) {
   ov.innerHTML = `<div class="sheet" id="sh">
     <div class="spinbox" id="sbox"><div class="body3d" id="b3d">
       <div class="face front">${front}</div>
-      <div class="face back">${backHtml()}</div>
+      <div class="face back">${backHtml()}</div>${EDGES}
     </div></div>
     <div class="spinfloor" id="sfloor"></div>
     <p class="spinhint">Fais glisser pour faire tourner la carte. Double tape pour la retourner.</p>
