@@ -73,9 +73,8 @@ function bindTilt(el, strength = 14) {
 }
 
 // ---------- Bandeaux ----------
-function banner(ids, title, sub) {
-  const imgs = ids.map((id, i) => `<img src="${cropUrl(id)}" alt="" class="${i === 0 ? 'on' : ''}" onerror="this.remove()">`).join('');
-  return `<header class="hero"><div class="hero-art">${imgs}</div><div class="hero-fade"></div>
+function banner(_ids, title, sub) {
+  return `<header class="hero"><div class="hero-fade"></div>
     <div class="hero-txt"><h1>${esc(title)}</h1>${sub ? `<p>${sub}</p>` : ''}</div></header>`;
 }
 function startHero() {
@@ -96,12 +95,7 @@ view.addEventListener('scroll', () => view.style.setProperty('--sy', Math.min(vi
 document.querySelectorAll('#dock button').forEach((b) => b.addEventListener('click', () => go(b.dataset.tab)));
 const BG = { home: 'blueEyes', sets: 'darkMagician', collection: 'exodia', profile: 'redEyes' };
 let bgI = 0;
-function setBg(t) {
-  const imgs = document.querySelectorAll('#bgmon img');
-  const nx = imgs[bgI ^= 1], old = imgs[bgI ^ 1];
-  nx.onload = () => { nx.classList.add('on'); old.classList.remove('on'); };
-  nx.src = cropUrl(ICONIC[BG[t]]);
-}
+function setBg() {}
 function go(t) {
   tab = t;
   setBg(t);
@@ -121,7 +115,7 @@ function renderHome() {
     <section class="panel vault">
       <div class="ring">
         <svg viewBox="0 0 120 120" aria-hidden="true">
-          <defs><linearGradient id="rg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff8a94"/><stop offset="1" stop-color="#ff2a3d"/></linearGradient></defs>
+          <defs><linearGradient id="rg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f0d48a"/><stop offset="1" stop-color="#d9b45a"/></linearGradient></defs>
           <circle class="track" cx="60" cy="60" r="52"/>
           <circle class="prog" id="prog" cx="60" cy="60" r="52" stroke-dashoffset="326.7"/>
         </svg>
@@ -268,7 +262,7 @@ function fxStop() {
 }
 
 // ---------- Ouverture ----------
-const stageBg = () => `<div class="stage-bg"><img src="${cropUrl(ICONIC.blueEyes)}" alt="" onerror="this.remove()"></div>`;
+const stageBg = () => '<div class="stage-bg"></div>';
 
 async function startOpen(set) {
   if (tick().boosters <= 0) { toast('Plus de booster. Reviens dans quelques minutes.'); return; }
