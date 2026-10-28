@@ -153,6 +153,7 @@ export const PACK_SIZE_RULES = [
   [/battle pack/, 5],
   [/legendary duelists/, 5],
   [/hidden arsenal/, 5],
+  [/magnificent monsters/, 5], // 5 cartes, confirmé par le communiqué Konami
   [/premium gold/, 5],
 ];
 /** Surcharges exactes (nom de l'extension -> nombre de cartes). */
@@ -178,6 +179,7 @@ function sized(cfg, size) {
 /** Choisit la composition de booster selon la date de sortie (AAAA-MM-JJ), le nom et la taille de l'extension. */
 export function packConfigFor(setName, date, cardCount) {
   if (PACK_OVERRIDES[setName]) return PACK_OVERRIDES[setName];
+  if (/magnificent monsters/i.test(setName || '')) return { noDuplicates: true, slots: [{ count: 5, weights: { ultra_rare: 1 } }] }; // 5 Ultra Rares par booster
   const d = (date || '').slice(0, 10);
   let base = ERA_C;
   if (d) base = d < '2008-09-01' ? ERA_A : d < '2016-01-01' ? ERA_B : d < '2020-04-01' ? ERA_C : ERA_D;

@@ -523,3 +523,43 @@ h2::after { background: linear-gradient(90deg, var(--gold), transparent); box-sh
 .spinbox .face.front, .spinbox .face.back { box-shadow: 0 30px 70px #000d; }
 .face.front, .face.back { box-shadow: 0 24px 50px #000b; }
 .reveal.hot .face.back { box-shadow: 0 0 40px 6px var(--gc); }
+
+/* =====================================================================
+   V6 : booster 3D réaliste (sachet aluminium serti en haut et en bas,
+   tranche, dos, reflets), carte qui apparaît face visible.
+   ===================================================================== */
+.packstage { width: min(62vw, 260px); animation: idle 5s ease-in-out infinite; perspective: 1100px; }
+@keyframes idle { 0%, 100% { transform: rotateY(-9deg) rotateX(3deg) translateY(0); } 50% { transform: rotateY(9deg) rotateX(-2deg) translateY(-8px); } }
+.pack { --ar: .62; --thick: 15px; aspect-ratio: var(--ar); filter: none; transform-style: preserve-3d; }
+.pk { border: 0; border-radius: 0; box-shadow: none; background: transparent; overflow: visible; }
+.pk.bot { clip-path: polygon(0% 12%, 100% 12%, 100.00% 100.00%, 95.45% 98.40%, 90.91% 100.00%, 86.36% 98.40%, 81.82% 100.00%, 77.27% 98.40%, 72.73% 100.00%, 68.18% 98.40%, 63.64% 100.00%, 59.09% 98.40%, 54.55% 100.00%, 50.00% 98.40%, 45.45% 100.00%, 40.91% 98.40%, 36.36% 100.00%, 31.82% 98.40%, 27.27% 100.00%, 22.73% 98.40%, 18.18% 100.00%, 13.64% 98.40%, 9.09% 100.00%, 4.55% 98.40%, 0.00% 100.00%); transform: translateZ(calc(var(--thick) / 2)); }
+.pk.topc { clip-path: polygon(0.00% 0.00%, 4.55% 1.60%, 9.09% 0.00%, 13.64% 1.60%, 18.18% 0.00%, 22.73% 1.60%, 27.27% 0.00%, 31.82% 1.60%, 36.36% 0.00%, 40.91% 1.60%, 45.45% 0.00%, 50.00% 1.60%, 54.55% 0.00%, 59.09% 1.60%, 63.64% 0.00%, 68.18% 1.60%, 72.73% 0.00%, 77.27% 1.60%, 81.82% 0.00%, 86.36% 1.60%, 90.91% 0.00%, 95.45% 1.60%, 100.00% 0.00%, 100% 12.2%, 0% 12.2%); transform-origin: 50% 12%; transform: translateZ(calc(var(--thick) / 2)); }
+.pack.noimg .pk.bot, .pack.noimg .pk.topc { background: linear-gradient(160deg, #ff4a5a, #7a0f1c 50%, #1a0306); }
+.pk .packimg { object-fit: fill; filter: drop-shadow(0 0 0 transparent); }
+.pk .packlabel { display: none; }
+.pack.noimg .pk .packlabel { display: block; }
+/* reflet métallique qui balaie le sachet */
+.pk::after { background: linear-gradient(105deg, transparent 30%, #ffffff55 46%, #ffffffaa 50%, #ffffff55 54%, transparent 70%); animation: sheen 3.4s ease-in-out infinite; }
+/* dos et tranches pour l'épaisseur */
+.pk.back { transform: translateZ(calc(var(--thick) / -2)) rotateY(180deg); clip-path: polygon(0.00% 0.00%, 4.55% 1.60%, 9.09% 0.00%, 13.64% 1.60%, 18.18% 0.00%, 22.73% 1.60%, 27.27% 0.00%, 31.82% 1.60%, 36.36% 0.00%, 40.91% 1.60%, 45.45% 0.00%, 50.00% 1.60%, 54.55% 0.00%, 59.09% 1.60%, 63.64% 0.00%, 68.18% 1.60%, 72.73% 0.00%, 77.27% 1.60%, 81.82% 0.00%, 86.36% 1.60%, 90.91% 0.00%, 95.45% 1.60%, 100.00% 0.00%, 100.00% 100.00%, 95.45% 98.40%, 90.91% 100.00%, 86.36% 98.40%, 81.82% 100.00%, 77.27% 98.40%, 72.73% 100.00%, 68.18% 98.40%, 63.64% 100.00%, 59.09% 98.40%, 54.55% 100.00%, 50.00% 98.40%, 45.45% 100.00%, 40.91% 98.40%, 36.36% 100.00%, 31.82% 98.40%, 27.27% 100.00%, 22.73% 98.40%, 18.18% 100.00%, 13.64% 98.40%, 9.09% 100.00%, 4.55% 98.40%, 0.00% 100.00%); background: linear-gradient(135deg, #9a9aa6, #4a4a56 40%, #c8c8d4 55%, #3c3c46); }
+.pk.side { top: 1.6%; bottom: 1.6%; height: auto; width: var(--thick); background: repeating-linear-gradient(0deg, #e2e2ec 0 2px, #6a6a78 2px 4px); clip-path: none; }
+.pk.side.l { left: 0; right: auto; transform-origin: 0 50%; transform: translateZ(calc(var(--thick) / 2)) rotateY(90deg); }
+.pk.side.r { left: auto; right: 0; transform-origin: 100% 50%; transform: translateZ(calc(var(--thick) / 2)) rotateY(-90deg); }
+.pack3d { transition: transform .12s linear; }
+.pglare { z-index: 5; border-radius: 4px; mix-blend-mode: normal; opacity: .22; background: radial-gradient(circle at var(--gx, 50%) var(--gy, 30%), #fff, transparent 55%); transform: translateZ(calc(var(--thick) / 2 + 1px)); clip-path: polygon(0% 12%, 100% 12%, 100.00% 100.00%, 95.45% 98.40%, 90.91% 100.00%, 86.36% 98.40%, 81.82% 100.00%, 77.27% 98.40%, 72.73% 100.00%, 68.18% 98.40%, 63.64% 100.00%, 59.09% 98.40%, 54.55% 100.00%, 50.00% 98.40%, 45.45% 100.00%, 40.91% 98.40%, 36.36% 100.00%, 31.82% 98.40%, 27.27% 100.00%, 22.73% 98.40%, 18.18% 100.00%, 13.64% 98.40%, 9.09% 100.00%, 4.55% 98.40%, 0.00% 100.00%); }
+.pack.tear .pk.topc { animation: toprip3 .9s cubic-bezier(.3, .6, .4, 1) forwards; }
+.pack.tear .pk.bot { animation: botfade3 .7s .35s ease-in forwards; }
+.pack.tear .pk.back, .pack.tear .pk.side { animation: botfade3 .7s .35s ease-in forwards; }
+@keyframes toprip3 { 0% { transform: translateZ(7px); } 25% { transform: translateZ(7px) rotateX(-35deg) translateY(-6px); } 100% { transform: translate3d(90px, -260px, 120px) rotateX(-120deg) rotateZ(38deg); opacity: 0; } }
+@keyframes botfade3 { to { transform: translate3d(0, 50px, 30px) scale(1.08); opacity: 0; } }
+.pack.shake { animation: pkshake .6s ease-in-out; }
+.pfloor { width: 70%; background: radial-gradient(ellipse, #000c, transparent 70%); }
+
+/* carte : apparaît face visible, glisse vers le haut */
+.pile i { background: #0b0305 url(cardback.png) center / cover; border: 0; }
+.reveal.hot .face.front { box-shadow: 0 0 46px 10px var(--gc), 0 24px 50px #000b; }
+.flipper { transition: none; }
+.flipper.enter { animation: deal .5s cubic-bezier(.2, .9, .25, 1.04); }
+@keyframes deal { from { transform: translate3d(0, 70px, -40px) scale(.9); opacity: 0; } to { transform: none; opacity: 1; } }
+.face.front { transform: none; }
+.reveal .flipper .card:not(.tilting) { animation: drift 9s ease-in-out infinite alternate !important; }

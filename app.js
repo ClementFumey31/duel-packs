@@ -275,14 +275,18 @@ async function startOpen(set) {
   S.tot[set.n] = data.pool.length;
 
   const close = () => { fxStop(); stage.remove(); go(tab === 'sets' ? 'sets' : tab); };
-  const face = `<img class="packimg" src="${esc(boosterUrl(set))}" alt="" onerror="this.remove()"><span class="packlabel">${esc(set.n)}</span>`;
+  const face = `<img class="packimg" src="${esc(boosterUrl(set))}" alt="" onerror="this.remove();this.closest('.pack')&&this.closest('.pack').classList.add('noimg')"><span class="packlabel">${esc(set.n)}</span>`;
   stage.innerHTML = `${stageBg()}
     <div class="top"><span id="stinfo"></span><button class="x" id="cl" aria-label="Fermer">✕</button></div>
     <div class="packstage" id="pstage"><div class="pack3d" id="p3d">
-      <button class="pack" id="pack" aria-label="Ouvrir le booster"><span class="pk bot">${face}</span><span class="pk topc">${face}</span><i class="burst"></i></button>
+      <button class="pack" id="pack" aria-label="Ouvrir le booster"><span class="pk side l"></span><span class="pk side r"></span><span class="pk back"></span><span class="pk bot">${face}</span><span class="pk topc">${face}</span><i class="burst"></i></button>
       <div class="pglare"></div></div></div>
     <div class="pfloor"></div>
     <div class="hint" id="hint"><b>Touche le booster</b>pour l’ouvrir</div>`;
+  // le booster épouse le format réel de l'image
+  const fi = $('.pk.bot .packimg', stage);
+  const fit = () => { if (fi && fi.naturalWidth) $('#pack', stage).style.setProperty('--ar', Math.min(.95, Math.max(.42, fi.naturalWidth / fi.naturalHeight)).toFixed(3)); };
+  if (fi) { if (fi.complete) fit(); else fi.addEventListener('load', fit); }
   $('#cl', stage).onclick = close;
   const info = () => ($('#stinfo', stage).textContent = `${tick().boosters} / ${MAX_BOOSTERS} boosters`);
   info();
@@ -348,11 +352,10 @@ function revealStep(stage, set, data, results, i, close) {
     <div class="reveal ${tier >= 2 ? 'hot' : ''}" id="rv" style="--gc:${gc}">
       <div class="pile">${'<i></i>'.repeat(Math.min(3, left))}</div>
       <div class="tiltwrap"><div class="flipper enter" id="fl">
-        <div class="face back">${backHtml()}</div>
         <div class="face front">${cardHtml(r.card, r.r, { big: true })}</div>
       </div></div>
     </div>
-    <div class="hint" id="hint"><b>Touche pour retourner</b>la carte</div>
+    <div class="hint" id="hint"><b>&nbsp;</b>&nbsp;</div>
     <div class="dots">${results.map((_, k) => `<i class="${k < i ? 'd' : ''}"></i>`).join('')}</div>
     <div class="flash" id="flash"></div>`;
   const rv = $('#rv', stage), fl = $('#fl', stage), hint = $('#hint', stage);
@@ -371,7 +374,8 @@ function revealStep(stage, set, data, results, i, close) {
     if (fx.vib && navigator.vibrate) { try { navigator.vibrate(fx.vib); } catch {} }
   };
 
-  let flipped = false, busy = false;
+  let busy = true;                                      // la carte apparaît, puis on peut la faire glisser
+  setTimeout(() => { celebrate(); busy = false; }, reduced() ? 10 : (tier >= 3 ? 700 : 450));
   $('#cl', stage).onclick = (e) => { e.stopPropagation(); close(); };
   $('#skip', stage).onclick = (e) => { e.stopPropagation(); summary(stage, set, data, results, close); };
   const next = () => {
@@ -380,21 +384,15 @@ function revealStep(stage, set, data, results, i, close) {
     rv.classList.add('out');                            // la carte part vers le haut, comme on la retire du paquet
     setTimeout(() => revealStep(stage, set, data, results, i + 1, close), reduced() ? 10 : 460);
   };
-  const flip = () => {
-    flipped = true; busy = true;
-    fl.classList.add('flipped');
-    setTimeout(celebrate, 360);
-    setTimeout(() => (busy = false), tier >= 3 ? 900 : 480);
-  };
   let sy = null, swiped = false;
   stage.onpointerdown = (e) => { sy = e.clientY; swiped = false; };
   stage.onpointerup = (e) => {
-    if (sy !== null && flipped && !busy && sy - e.clientY > 50) { swiped = true; next(); }
+    if (sy !== null && !busy && sy - e.clientY > 50) { swiped = true; next(); }
     sy = null;
   };
   stage.onclick = (e) => {
     if (e.target.closest('#cl') || e.target.closest('#skip') || busy || swiped) { swiped = false; return; }
-    if (!flipped) flip(); else next();
+    next();
   };
 }
 
