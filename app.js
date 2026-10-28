@@ -1,4 +1,4 @@
-import { computeBoosters, consumeBooster, MAX_BOOSTERS, REFILL_MS, openPack, packConfigFor, packSizeFor, rarityInfo } from './engine.js';
+import { computeBoosters, consumeBooster, MAX_BOOSTERS, REFILL_MS, openPack, packConfigFor, packSizeFor, rarityInfo, RARITY_META } from './engine.js';
 import { loadState, saveState, parseSave } from './state.js';
 import { getSets, getSetData, artUrl, cropUrl, boosterUrl, ICONIC } from './data.js';
 
@@ -104,12 +104,12 @@ function setBg(t) {
 function go(t) {
   tab = t;
   setBg(t);
-  document.querySelectorAll('#dock button').forEach((b) => b.classList.toggle('on', b.dataset.tab === t));
+  document.querySelectorAll('#dock button').forEach((b) => b.classList.toggle('on', b.dataset.tab === (t === 'rarities' ? 'profile' : t)));
   clearInterval(timerId);
   clearInterval(heroTimer);
   view.scrollTop = 0;
   view.style.setProperty('--sy', '0px');
-  ({ home: renderHome, sets: renderSets, collection: renderCollection, profile: renderProfile })[t]();
+  ({ home: renderHome, sets: renderSets, collection: renderCollection, profile: renderProfile, rarities: renderRarities })[t]();
 }
 
 // ---------- Accueil ----------
@@ -130,12 +130,21 @@ function renderHome() {
       <div class="slots" id="pips" aria-hidden="true"></div>
       <button class="btn" id="go">Ouvrir un booster</button>
     </section>
-    <h2>Légendes</h2>
-    <div class="legends">${['blueEyes', 'darkMagician', 'redEyes', 'exodia', 'slifer', 'obelisk', 'ra', 'summonedSkull', 'magicianGirl'].map((k) => `<div class="legend"><img src="${artUrl(ICONIC[k])}" alt="" loading="lazy" onerror="this.parentNode.remove()"></div>`).join('')}</div>
+    <h2>Ma vitrine <span class="cnt">${S.fav.length} / 9</span></h2>
+    <div class="vitrine" id="vit">${Array.from({ length: 9 }, (_, k) => {
+      const f = S.fav[k];
+      return f ? `<button class="vslot" data-k="${k}" aria-label="${esc(f.n)}">${cardHtml({ a: f.a, n: f.n }, f.r, { showName: false, fx: true })}</button>`
+        : `<button class="vslot empty" data-k="-1" aria-label="Ajouter une carte"><span>+</span></button>`;
+    }).join('')}</div>
     <h2>Dernières cartes</h2>
     <div class="shelf" id="last">${lastCards.length ? '' : '<div class="empty" style="width:100%">Ta première carte apparaîtra ici.</div>'}</div>`;
   $('#go').onclick = () => go('sets');
   startHero();
+  document.querySelectorAll('#vit .vslot').forEach((b) => (b.onclick = () => {
+    const f = S.fav[+b.dataset.k];
+    if (!f) { toast('Ouvre une carte de ta collection et touche « Ajouter à la vitrine ».'); go('collection'); return; }
+    openSheet({ a: f.a, n: f.n, k: f.atk ?? null, d: f.def ?? null }, { r: f.r, c: f.c }, S.col[f.k] || 1, f.k);
+  }));
   const last = $('#last');
   lastCards.forEach((h) => {
     const d = document.createElement('div');
@@ -281,10 +290,10 @@ async function startOpen(set) {
   stage.innerHTML = `${stageBg()}
     <div class="top"><span id="stinfo"></span><button class="x" id="cl" aria-label="Fermer">✕</button></div>
     <div class="packstage" id="pstage"><div class="pack3d" id="p3d">
-      <button class="pack" id="pack" aria-label="Ouvrir le booster"><span class="pk side l"></span><span class="pk side r"></span><span class="pk back"></span><span class="pk bot">${face}</span><span class="pk topc">${face}</span><i class="burst"></i></button>
+      <button class="pack" id="pack" aria-label="Ouvrir le booster"><span class="pk side l"></span><span class="pk side r"></span><span class="pk back"></span><span class="pk bot">${face}</span><span class="pk topc">${face}</span><i class="tearguide"></i><i class="tearline"></i><i class="burst"></i></button>
       <div class="pglare"></div></div></div>
     <div class="pfloor"></div>
-    <div class="hint" id="hint"><b>Touche le booster</b>pour l’ouvrir</div>`;
+    <div class="hint" id="hint"><b>Déchire le booster</b>glisse le doigt le long du haut</div>`;
   // le booster épouse le format réel de l'image
   const fi = $('.pk.bot .packimg', stage);
   const fit = () => { if (fi && fi.naturalWidth) $('#pack', stage).style.setProperty('--ar', Math.min(.95, Math.max(.42, fi.naturalWidth / fi.naturalHeight)).toFixed(3)); };
@@ -297,7 +306,7 @@ async function startOpen(set) {
   const p3d = $('#p3d', stage), pst = $('#pstage', stage);
   let opening = false;
   const tiltPack = (e) => {
-    if (opening) return;
+    if (opening || tearing) return;
     const b = pst.getBoundingClientRect();
     const px = Math.min(1, Math.max(0, (e.clientX - b.left) / b.width)), py = Math.min(1, Math.max(0, (e.clientY - b.top) / b.height));
     p3d.style.transform = `rotateY(${(px - .5) * 34}deg) rotateX(${(.5 - py) * 24}deg)`;
@@ -307,12 +316,18 @@ async function startOpen(set) {
   stage.addEventListener('pointermove', tiltPack);
   stage.addEventListener('pointerdown', tiltPack);
 
-  $('#pack', stage).onclick = () => {
+  // ---- Ouverture : on glisse le doigt le long du trait de découpe, en haut du booster ----
+  const pk = $('#pack', stage);
+  let tearing = false, tx0 = 0, tid = null, lastTick = 0;
+  const setTear = (p, s) => { pk.style.setProperty('--tp', p.toFixed(3)); pk.style.setProperty('--ts', s); };
+  const doOpen = (dir) => {
     if (opening) return;
     const next = consumeBooster(S, Date.now());
-    if (!next) { toast('Plus de booster.'); return; }
+    if (!next) { toast('Plus de booster.'); setTear(0, 1); return; }
     opening = true;
     p3d.style.transform = '';
+    pk.style.setProperty('--ts', dir);
+    pk.classList.remove('dragging');
     S = { ...S, boosters: next.boosters, lastRefillAt: next.lastRefillAt, lastSeenAt: next.lastSeenAt, opened: S.opened + 1 };
     const pulled = openPack(data.pool, packConfigFor(set.n, set.d, data.pool.length));
     const results = pulled.map((p) => {
@@ -327,17 +342,45 @@ async function startOpen(set) {
     $('#hint', stage).innerHTML = '';
     // les meilleures cartes en dernier, comme dans un vrai booster
     results.sort((a, b) => rarityInfo(a.r).tier - rarityInfo(b.r).tier);
-    results.forEach((x) => { const im = new Image(); im.decoding = 'async'; im.src = artUrl(x.card.a); });   // préchargement : aucune attente à l'affichage
-    const pk = $('#pack', stage);
-    pk.classList.add('shake');                       // 1) le paquet tremble
-    setTimeout(() => {                                // 2) le haut se déchire
-      pk.classList.remove('shake'); pk.classList.add('tear');
-      const r = pk.getBoundingClientRect();
-      fxBurst(r.left + r.width / 2, r.top + r.height * .13, ['#ffd86b', '#fff3c4', '#ffffff'], 70, 1.1);
-      if (navigator.vibrate) { try { navigator.vibrate(30); } catch {} }
-    }, 650);
-    setTimeout(() => revealStep(stage, set, data, results, 0, close), 1500); // 3) les cartes sortent
+    results.forEach((x) => { const im = new Image(); im.decoding = 'async'; im.src = artUrl(x.card.a); });   // préchargement
+    pk.classList.add('tear');                         // le haut part dans le sens du geste
+    const r = pk.getBoundingClientRect();
+    fxBurst(r.left + r.width / 2, r.top + r.height * .13, ['#ffd86b', '#fff3c4', '#ffffff'], 80, 1.2);
+    if (navigator.vibrate) { try { navigator.vibrate([20, 30, 40]); } catch {} }
+    setTimeout(() => revealStep(stage, set, data, results, 0, close), 1000);
   };
+  pk.addEventListener('pointerdown', (e) => {
+    if (opening) return;
+    const b = pk.getBoundingClientRect();
+    if ((e.clientY - b.top) / b.height > .34) return;        // le geste commence dans la partie haute
+    tearing = true; tx0 = e.clientX; tid = e.pointerId;
+    try { pk.setPointerCapture(tid); } catch {}
+    pk.classList.add('dragging');
+    e.stopPropagation();
+  });
+  pk.addEventListener('pointermove', (e) => {
+    if (!tearing || e.pointerId !== tid) return;
+    const b = pk.getBoundingClientRect();
+    const dx = e.clientX - tx0, p = Math.min(1, Math.abs(dx) / (b.width * .85));
+    const s = dx >= 0 ? 1 : -1;
+    setTear(p, s);
+    const stepNo = Math.floor(p * 6);
+    if (stepNo !== lastTick) { lastTick = stepNo; if (navigator.vibrate) { try { navigator.vibrate(6); } catch {} } }
+    if (p >= 1) { tearing = false; doOpen(s); }
+  });
+  const end = () => {
+    if (!tearing) return;
+    tearing = false; lastTick = 0;
+    pk.classList.remove('dragging');                          // relâché trop tôt : le haut se repose
+    setTear(0, +pk.style.getPropertyValue('--ts') || 1);
+  };
+  pk.addEventListener('pointerup', end);
+  pk.addEventListener('pointercancel', end);
+  pk.addEventListener('click', (e) => {                       // simple toucher : indice ; clavier : ouvre
+    if (opening) return;
+    if (e.detail === 0) { doOpen(1); return; }
+    pk.classList.remove('nudge'); void pk.offsetWidth; pk.classList.add('nudge');
+  });
 }
 
 function revealStep(stage, set, data, results, i, close) {
@@ -468,12 +511,13 @@ async function drawSetCollection() {
   $('#rchips').onclick = (e) => { const r = e.target.dataset.r; if (r) { colFilter.rarity = r; drawSetCollection(); } };
   document.querySelectorAll('#grid .slot').forEach((b) => (b.onclick = () => {
     const p = list[+b.dataset.i];
-    openSheet(data.cards[p.i], p, S.col[key(p)] || 0);
+    openSheet(data.cards[p.i], p, S.col[key(p)] || 0, key(p));
   }));
 }
 
 // ---------- Fiche carte : objet 3D à faire tourner ----------
-function bindSpin(box, body, card, onStop) {
+function bindSpin(box, body, card0, onStop) {
+  let card = card0;
   const st = { rx: 0, ry: 0, vx: 0, vy: 0, down: false, lx: 0, ly: 0, raf: 0, settling: false };
   const apply = () => {
     body.style.transform = `rotateX(${st.rx.toFixed(2)}deg) rotateY(${st.ry.toFixed(2)}deg)`;
@@ -524,12 +568,52 @@ function bindSpin(box, body, card, onStop) {
   return {
     reset() { st.vy = 0; st.vx = 0; st.settling = true; st.ry = Math.round(st.ry / 360) * 360; card.classList.add('tilting'); kick(); },
     flip() { flipTo(180); },
+    setCard(c) { card = c; },
     stop() { cancelAnimationFrame(st.raf); st.raf = 0; },
   };
 }
 
-function openSheet(card, p, qty) {
+// ---------- Version anime (images de Yugipedia, trouvées à la demande) ----------
+// Les fichiers sont nommés "NomDeLaCarte-JP|AE|EN-Anime-SERIE.png" (DM, GX, 5D, ZX, AV, VR, SV).
+const ANIME_SERIES = { DM: 'Duel Monsters', GX: 'GX', '5D': '5D’s', ZX: 'ZEXAL', AV: 'ARC-V', VR: 'VRAINS', SV: 'SEVENS' };
+const animeMem = new Map();
+let animeBackMem = null;
+const YPI = 'https://yugipedia.com/api.php?action=query&list=allimages&aiprop=url&format=json&origin=*';
+async function animeLookup(name) {
+  const key = String(name || '').replace(/[^A-Za-z0-9]/g, '');
+  if (!key) return null;
+  if (animeMem.has(key)) return animeMem.get(key);
+  try {
+    const j = await (await fetch(`${YPI}&ailimit=100&aiprefix=${encodeURIComponent(key + '-')}`)).json();
+    const re = new RegExp('^' + key + '-(JP|AE|EN)-Anime-([A-Za-z0-9]+)\\.(png|jpe?g)$', 'i');
+    const by = {};
+    for (const im of j.query?.allimages || []) {
+      const m = String(im.name).replace(/_/g, ' ').replace(/ /g, '').match(re);
+      if (!m) continue;
+      const ser = m[2].toUpperCase(), rank = { EN: 0, AE: 1, JP: 2 }[m[1].toUpperCase()];
+      if (!by[ser] || rank < by[ser].rank) by[ser] = { rank, url: im.url };
+    }
+    const res = Object.keys(by).length ? by : null;
+    animeMem.set(key, res);
+    return res;
+  } catch { return null; }
+}
+async function animeBacks() {
+  if (animeBackMem) return animeBackMem;
+  try {
+    const j = await (await fetch(`${YPI}&ailimit=100&aiprefix=Back-Anime`)).json();
+    animeBackMem = (j.query?.allimages || []).map((im) => ({ n: String(im.name).toLowerCase(), url: im.url }));
+  } catch { return []; }
+  return animeBackMem;
+}
+function animeBackFor(backs, ser) {
+  const s = String(ser).toLowerCase();
+  return (backs.find((b) => b.n.includes('-' + s) || b.n.includes('_' + s)) || backs[0] || {}).url || null;
+}
+
+function openSheet(card, p, qty, favKey) {
   const ov = $('#overlay');
+  const isFav = () => S.fav.some((f) => f.k === favKey);
   const meta = rarityInfo(p.r);
   ov.hidden = false;
   const front = qty ? cardHtml(card, p.r, { big: true, fx: true }) : cardHtml(card, p.r, { big: true }).replace('class="card', 'style="filter:grayscale(1) brightness(.4)" class="card');
@@ -540,15 +624,72 @@ function openSheet(card, p, qty) {
     </div></div>
     <div class="spinfloor" id="sfloor"></div>
     <p class="spinhint">Fais glisser pour faire tourner la carte. Double tape pour la retourner.</p>
+    <div id="anime"></div>
     <div class="panel info"><h3>${esc(card.n)}</h3>
       <div class="kv"><span class="r">${esc(meta.label)}</span><span>${esc(p.c)}</span><span>${qty ? 'x' + qty : 'Non possédée'}</span>${card.k !== null ? `<span>ATK ${card.k}</span>` : ''}${card.d !== null ? `<span>DEF ${card.d}</span>` : ''}</div>
     </div>
+    ${qty && favKey ? '<button class="btn ghost sm favbtn" id="sfav"></button>' : ''}
     <div class="row"><button class="btn ghost sm" id="sreset">Recentrer</button><button class="btn sm" id="shx">Fermer</button></div></div>`;
+  const favBtn = $('#sfav');
+  const paintFav = () => { if (favBtn) { favBtn.textContent = isFav() ? '★ Retirer de la vitrine' : '☆ Ajouter à la vitrine'; favBtn.classList.toggle('on', isFav()); } };
+  paintFav();
+  if (favBtn) favBtn.onclick = () => {
+    if (isFav()) S.fav = S.fav.filter((f) => f.k !== favKey);
+    else if (S.fav.length >= 9) { toast('Ta vitrine est pleine (9 cartes). Retire-en une d’abord.'); return; }
+    else S.fav = [...S.fav, { k: favKey, a: card.a, n: card.n, r: p.r, c: p.c, atk: card.k, def: card.d }];
+    saveState(S); paintFav(); toast(isFav() ? 'Ajoutée à ta vitrine' : 'Retirée de ta vitrine');
+  };
   const spin = bindSpin($('#sbox'), $('#b3d'), $('.card', ov), null);
-  const closeIt = () => { spin.stop(); ov.hidden = true; ov.innerHTML = ''; };
+  const frontEl = $('#b3d .face.front'), backEl = $('#b3d .face.back');
+  const frontHtml = frontEl.innerHTML, backHtmlOrig = backEl.innerHTML;
+  animeLookup(card.n).then(async (by) => {
+    if (!by || !$('#anime')) return;
+    const backs = await animeBacks();
+    const sers = Object.keys(by);
+    let mode = 'tcg', ser = sers[0];
+    const draw = () => {
+      const box = $('#anime'); if (!box) return;
+      box.innerHTML = `<div class="seg" id="aseg"><button data-m="tcg" class="${mode === 'tcg' ? 'on' : ''}">Carte TCG</button><button data-m="anime" class="${mode === 'anime' ? 'on' : ''}">Version anime</button></div>` +
+        (mode === 'anime' && sers.length > 1 ? `<div class="chips" id="aser" style="margin:0 0 8px;padding:0">${sers.map((s) => `<button class="chip ${s === ser ? 'on' : ''}" data-s="${s}">${esc(ANIME_SERIES[s] || s)}</button>`).join('')}</div>` : '');
+      $('#aseg').onclick = (e) => { const m = e.target.dataset.m; if (m) { mode = m; apply(); } };
+      const as = $('#aser'); if (as) as.onclick = (e) => { const s = e.target.dataset.s; if (s) { ser = s; apply(); } };
+    };
+    const apply = () => {
+      if (!$('#b3d')) return;
+      if (mode === 'tcg') { frontEl.innerHTML = frontHtml; backEl.innerHTML = backHtmlOrig; }
+      else {
+        frontEl.innerHTML = `<div class="card lg"><img src="${esc(by[ser].url)}" alt="${esc(card.n)} (anime)"></div>`;
+        const bu = animeBackFor(backs, ser);
+        backEl.innerHTML = `<div class="cback"><div class="cb-art"></div>${bu ? `<img class="cb-img" src="${esc(bu)}" alt="" onerror="this.remove()">` : ''}</div>`;
+      }
+      spin.setCard($('.card', frontEl));
+      draw();
+    };
+    draw();
+  });
+  const closeIt = () => { spin.stop(); ov.hidden = true; ov.innerHTML = ''; if (tab === 'home') renderHome(); };
   $('#shx').onclick = closeIt;
   $('#sreset').onclick = () => spin.reset();
   $('#sh').addEventListener('click', (e) => { if (e.target.id === 'sh') closeIt(); });
+}
+
+// ---------- Galerie des raretés : une carte exemple par rareté ----------
+function renderRarities() {
+  const sample = { a: ICONIC.blueEyes, n: 'Blue-Eyes White Dragon', k: 3000, d: 2500 };
+  const list = Object.entries(RARITY_META).sort((x, y) => x[1].tier - y[1].tier);
+  view.innerHTML = `
+    ${banner([ICONIC.blueEyes, ICONIC.redEyes], 'Raretés', 'Une carte exemple par rareté. Touche pour l’incliner, ouvre-la pour la faire tourner.')}
+    <button class="btn ghost sm" id="rback" style="margin-bottom:14px">← Profil</button>
+    <div class="rargrid">${list.map(([key, m], i) => `<div class="rar" data-i="${i}">
+      <div class="rarcard">${cardHtml(sample, key, { showName: false, fx: true })}</div>
+      <div class="rarname">${esc(m.label)}</div><div class="rarsub">Palier ${m.tier}</div></div>`).join('')}</div>`;
+  startHero();
+  $('#rback').onclick = () => go('profile');
+  document.querySelectorAll('.rar').forEach((el) => {
+    const [key] = list[+el.dataset.i];
+    bindTilt($('.rarcard', el), 14);
+    $('.rarcard', el).onclick = () => openSheet(sample, { r: key, c: 'LOB-EN001' }, 1, null);
+  });
 }
 
 // ---------- Profil ----------
@@ -564,6 +705,8 @@ function renderProfile() {
       <div class="panel stat"><b>${owned.length}</b><span>Cartes uniques</span></div>
       <div class="panel stat"><b>${rare}</b><span>Ultimate et au-dessus</span></div>
     </div>
+    <h2>Galerie</h2>
+    <button class="btn ghost" id="gal">Voir les effets de chaque rareté</button>
     <h2>Sauvegarde</h2>
     <p class="sub">Exporte ta collection pour la garder ou la transférer sur un autre appareil.</p>
     <div class="row wrap">
@@ -572,6 +715,7 @@ function renderProfile() {
       <button class="btn ghost sm" id="rst" style="color:var(--danger)">Réinitialiser</button>
     </div><div id="rstbox"></div>`;
   startHero();
+  $('#gal').onclick = () => go('rarities');
   $('#exp').onclick = async () => {
     const text = JSON.stringify(S);
     try {

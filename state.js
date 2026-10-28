@@ -3,7 +3,7 @@ const KEY = 'duelpacks.save.v2';
 
 const fresh = () => {
   const now = Date.now();
-  return { v: 1, boosters: 10, lastRefillAt: now, lastSeenAt: now, opened: 0, col: {}, tot: {}, hist: [] };
+  return { v: 1, boosters: 10, lastRefillAt: now, lastSeenAt: now, opened: 0, col: {}, tot: {}, hist: [], fav: [] };
 };
 
 export function loadState() {

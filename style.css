@@ -662,3 +662,53 @@ h2::before { width: 6px; height: 6px; }
 .reveal.out .tiltwrap { transition-duration: .34s, .34s !important; }
 .flipper.enter { animation: deal .34s cubic-bezier(.2, .9, .25, 1.04); }
 .stage-bg img { will-change: transform; }
+
+/* =====================================================================
+   V9 : booster qui se déchire au doigt, le long du trait de découpe
+   --tp = avancement du geste (0 à 1), --ts = sens (1 gauche→droite, -1 droite→gauche)
+   ===================================================================== */
+.pack { touch-action: none; --tp: 0; --ts: 1; cursor: grab; }
+.pack:not(.tear) .pk.topc {
+  transform-origin: calc(50% + 50% * var(--ts)) 12%;
+  transform: translateZ(calc(var(--thick) / 2)) rotateX(calc(var(--tp) * -16deg)) rotate(calc(var(--ts) * var(--tp) * 6deg)) translateY(calc(var(--tp) * -8px));
+}
+.pack:not(.dragging):not(.tear) .pk.topc { transition: transform .32s cubic-bezier(.3, 1.4, .5, 1); }
+.pack.tear .pk.topc { transform-origin: calc(50% + 50% * var(--ts)) 12%; animation: toprip3 .8s cubic-bezier(.3, .6, .4, 1) forwards; }
+@keyframes toprip3 {
+  0% { transform: translateZ(7px) rotateX(-16deg) rotate(calc(var(--ts) * 6deg)) translateY(-8px); }
+  100% { transform: translate3d(calc(var(--ts) * 150px), -280px, 140px) rotateX(-110deg) rotateZ(calc(var(--ts) * 50deg)); opacity: 0; }
+}
+.tearline, .tearguide { position: absolute; left: 0; right: 0; top: 12%; height: 2px; pointer-events: none; transform: translateZ(calc(var(--thick) / 2 + 2px)); }
+.tearline { background: linear-gradient(90deg, #fff0 0, #fff 12%, #fff 100%); box-shadow: 0 0 8px #fff, 0 0 18px #ffd86b, 0 0 34px #ff2a3d; transform-origin: calc(50% - 50% * var(--ts)) 0; transform: translateZ(calc(var(--thick) / 2 + 2px)) scaleX(var(--tp)); opacity: min(1, calc(var(--tp) * 12)); }
+.pack.tear .tearline { opacity: 0; transition: opacity .2s; }
+.tearguide { background: repeating-linear-gradient(90deg, #fff 0 6px, transparent 6px 12px); opacity: .55; filter: drop-shadow(0 0 4px #000); }
+.tearguide::after { content: ""; position: absolute; top: -7px; left: 0; width: 16px; height: 16px; border-radius: 50%; background: radial-gradient(circle, #fff, #ffd86b 45%, transparent 70%); box-shadow: 0 0 14px #ffd86b; animation: guide 2.2s ease-in-out infinite; }
+@keyframes guide { 0%, 12% { left: 0; opacity: 0; } 25% { opacity: 1; } 75% { opacity: 1; } 88%, 100% { left: calc(100% - 16px); opacity: 0; } }
+.pack.dragging .tearguide, .pack.tear .tearguide { display: none; }
+.pack.nudge { animation: nudge .5s ease-in-out; }
+@keyframes nudge { 20% { transform: translateX(-6px) rotate(-1.5deg); } 50% { transform: translateX(7px) rotate(1.5deg); } 80% { transform: translateX(-3px); } }
+
+/* sachet plus réaliste : bords bombés, sertissage strié en haut et en bas */
+.pk.bot::before, .pk.topc::before { content: ""; position: absolute; inset: 0; z-index: 2; pointer-events: none; }
+.pk.bot::before { background: repeating-linear-gradient(90deg, #0000 0 3px, #0000003a 3px 4px, #ffffff2e 4px 5px) bottom / 100% 7% no-repeat, linear-gradient(90deg, #000a, transparent 14%, transparent 86%, #000a), linear-gradient(180deg, #ffffff22, transparent 18%, transparent 80%, #0006); }
+.pk.topc::before { background: repeating-linear-gradient(90deg, #0000 0 3px, #0000003a 3px 4px, #ffffff2e 4px 5px) top / 100% 70% no-repeat, linear-gradient(90deg, #000a, transparent 14%, transparent 86%, #000a); }
+.pack.tear .pk.topc::before { opacity: 1; }
+
+/* vitrine de favorites */
+h2 .cnt { margin-left: auto; font-family: var(--font); font-size: 11px; letter-spacing: .04em; color: var(--mute); order: 3; }
+h2:has(.cnt)::after { order: 2; }
+.vitrine { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 12px; border: 1px solid #d9b45a55; border-radius: 12px; background: linear-gradient(180deg, #170709, #070203); box-shadow: inset 0 0 40px #ff2a3d14; }
+.vslot { position: relative; display: block; width: 100%; padding: 0; border: 0; background: none; aspect-ratio: 421 / 614; border-radius: 5px; transition: transform .25s var(--ease); min-width: 0; }
+.vslot:active { transform: scale(.96); }
+.vslot .card { box-shadow: 0 8px 18px #000a; }
+.vslot.empty { border: 1px dashed #d9b45a55; background: #ffffff05; color: #d9b45a88; font-size: 26px; font-weight: 300; }
+.favbtn { margin-top: 12px; }
+.favbtn.on { color: #fff; border-color: #ff2a3d; background: #7a0f1c; }
+
+/* galerie des raretés */
+.rargrid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px 14px; }
+.rar { min-width: 0; text-align: center; }
+.rarcard { perspective: 700px; cursor: pointer; }
+.rarcard .card { transition: transform .12s ease-out; box-shadow: 0 10px 22px #000a; }
+.rarname { margin-top: 8px; font-family: var(--title); font-weight: 700; font-size: 12px; letter-spacing: .04em; color: var(--gold-hi); }
+.rarsub { font-size: 10px; color: var(--mute); }
