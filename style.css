@@ -1043,3 +1043,9 @@ body { background-size: auto, 288px 360px, auto; }
 .sortbar label { font-size: 11px; letter-spacing: .08em; color: var(--mute, #9a9aa2); }
 .sortbar select { flex: 1; background: #0d0d0f; color: #e8e0c8; border: 1px solid #8a6d2a; border-radius: 999px; padding: 7px 12px; font: inherit; font-size: 12px; }
 #regchips .chip small { opacity: .6; margin-left: 4px; font-size: 10px; }
+.vchoose { width: 100%; max-width: 340px; margin: 0 auto; padding: 24px 16px; text-align: center; display: flex; flex-direction: column; gap: 10px; }
+.vchoose h3 { font-family: var(--font-d, 'Cinzel', serif); color: #e6c868; letter-spacing: .08em; margin: 0; font-weight: 500; }
+.vchoose p { color: #9a9aa2; font-size: 12px; margin: 0 0 8px; }
+.vbtn { display: flex; justify-content: space-between; align-items: center; text-align: left; }
+.vbtn small { opacity: .7; font-size: 11px; }
+.packlabel small { font-size: 9px; opacity: .8; letter-spacing: .14em; }

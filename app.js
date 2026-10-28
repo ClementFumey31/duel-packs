@@ -1,11 +1,12 @@
 import { computeBoosters, consumeBooster, MAX_BOOSTERS, REFILL_MS, openPack, packConfigFor, packSizeFor, rarityInfo, RARITY_META } from './engine.js';
 import { loadState, saveState, parseSave } from './state.js';
-import { getSets, getSetData, artUrl, cropUrl, boosterUrl, ICONIC } from './data.js';
+import { getSets, getSetData, getSetLang, artUrl, cropUrl, boosterUrl, ICONIC } from './data.js';
 
 let S = loadState();
 let tab = 'home';
 let setFilter = { q: '', sort: 'new' };
 let colSet = null;
+const lastRegion = {};
 let colFilter = { own: 'all', rarity: 'all', sort: 'num', dir: 1, reg: null };
 let timerId = null;
 let heroTimer = null;
@@ -262,7 +263,7 @@ function fxStop() {
 // ---------- Ouverture ----------
 const stageBg = () => '<div class="stage-bg"></div>';
 
-async function startOpen(set) {
+async function startOpen(set, region) {
   if (tick().boosters <= 0) { toast('Plus de booster. Reviens dans quelques minutes.'); return; }
   const stage = document.createElement('div');
   stage.className = 'stage';
@@ -277,9 +278,23 @@ async function startOpen(set) {
   }
   if (!data.pool.length) { stage.remove(); toast('Cette extension ne contient aucune carte exploitable.'); return; }
   S.tot[set.n] = mainPool(data.pool).length;
+  const regs = regionList(data.pool);
+  if (!region && regs.length === 1) region = regs[0];
+  if (!region) {
+    const last = lastRegion[set.n];
+    stage.innerHTML = `${stageBg()}<div class="top"><span>${esc(set.n)}</span><button class="x" id="cl" aria-label="Fermer">✕</button></div>
+      <div class="vchoose"><h3>Choisis la version</h3><p>Chaque version contient les cartes et les numéros de sa région.</p>
+      ${regs.map((r) => `<button class="btn ${r === last ? '' : 'ghost'} vbtn" data-g="${esc(r)}"><b>${esc(REGIONS[r] || r)}</b><small>${data.pool.filter((p) => regionOf(p.c) === r).length} cartes · ${esc(r)}</small></button>`).join('')}</div>`;
+    $('#cl', stage).onclick = () => stage.remove();
+    stage.querySelectorAll('.vbtn').forEach((b) => (b.onclick = () => { stage.remove(); startOpen(set, b.dataset.g); }));
+    return;
+  }
+  lastRegion[set.n] = region;
+  const cards = await localize(set.n, data.cards, region);
+  const regPool = data.pool.filter((p) => regionOf(p.c) === region);
 
   const close = () => { fxStop(); stage.remove(); go(tab === 'sets' ? 'sets' : tab); };
-  const face = `<img class="packimg" data-bs="0" alt=""><img class="packsheen" data-bs="0" alt=""><span class="packlabel">${esc(set.n)}</span>`;
+  const face = `<img class="packimg" data-bs="0" alt=""><img class="packsheen" data-bs="0" alt=""><span class="packlabel">${esc(set.n)}<br><small>${esc(REGIONS[region] || region)}</small></span>`;
   stage.innerHTML = `${stageBg()}
     <div class="top"><span id="stinfo"></span><button class="x" id="cl" aria-label="Fermer">✕</button></div>
     <div class="packstage" id="pstage"><div class="pack3d" id="p3d">
@@ -323,13 +338,13 @@ async function startOpen(set) {
     pk.style.setProperty('--ts', dir);
     pk.classList.remove('dragging');
     S = { ...S, boosters: next.boosters, lastRefillAt: next.lastRefillAt, lastSeenAt: next.lastSeenAt, opened: S.opened + 1 };
-    const mp = mainPool(data.pool);
+    const mp = regPool;
     const pulled = openPack(mp, packConfigFor(set.n, set.d, mp.length));
     const results = pulled.map((p) => {
       const key = set.n + '||' + p.c + '||' + p.r;
       const isNew = !S.col[key];
       S.col[key] = (S.col[key] || 0) + 1;
-      return { ...p, card: data.cards[p.i], isNew, n: S.col[key] };
+      return { ...p, card: cards[p.i], isNew, n: S.col[key] };
     });
     S.hist = [...results.slice().reverse().map((x) => ({ a: x.card.a, n: x.card.n, r: x.r })), ...S.hist].slice(0, 30);
     saveState(S);
@@ -468,7 +483,7 @@ function summary(stage, set, data, results, close) {
     </div>`;
   $('#cl', stage).onclick = close;
   $('#back', stage).onclick = close;
-  $('#again', stage).onclick = () => { fxStop(); stage.remove(); startOpen(set); };
+  $('#again', stage).onclick = () => { fxStop(); stage.remove(); startOpen(set, region); };
 }
 
 
@@ -535,6 +550,13 @@ const REGIONS = { EN: 'Amérique', E: 'Europe', EU: 'Europe', AE: 'Asie (EN)', F
 const REGION_ORDER = ['EN', 'NA', 'E', 'EU', 'AE', 'AU', 'FR', 'F', 'DE', 'G', 'IT', 'I', 'SP', 'S', 'PT', 'P', 'JP', 'J', 'KR', 'K', 'SC', 'TC'];
 const regionOf = (code) => { const m = /-([A-Z]+)\d/.exec(code || ''); return m ? m[1] : (/-\d/.test(code || '') ? 'FR' : 'EN'); };
 const regionList = (pool) => [...new Set(pool.map((p) => regionOf(p.c)))].sort((a, b) => { const ia = REGION_ORDER.indexOf(a), ib = REGION_ORDER.indexOf(b); return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib) || a.localeCompare(b); });
+const LANGS = { FR: 'fr', F: 'fr', DE: 'de', G: 'de', IT: 'it', I: 'it', PT: 'pt', P: 'pt' };
+const localize = async (setName, cards, region) => {
+  const lg = LANGS[region]; if (!lg) return cards;
+  const L = await getSetLang(setName, lg); if (!Object.keys(L).length) return cards;
+  const o = {}; for (const id in cards) o[id] = L[id] ? { ...cards[id], n: L[id].n, x: L[id].x || cards[id].x } : cards[id];
+  return o;
+};
 const mainPool = (pool) => { const r = regionList(pool)[0]; return pool.filter((p) => regionOf(p.c) === r); };
 
 // ---------- Collection ----------
@@ -576,6 +598,11 @@ async function drawSetCollection() {
   if (!regs.includes(colFilter.reg)) colFilter.reg = regs[0];
   const regOwn = (r) => ent.filter((e) => regionOf(e.p.c) === r && qOf(e)).length;
   ent = ent.filter((e) => regionOf(e.p.c) === colFilter.reg);
+  if (LANGS[colFilter.reg]) {
+    const dm = Object.fromEntries(datas), loc = {};
+    await Promise.all([...new Set(ent.map((e) => e.n))].map(async (n) => { loc[n] = await localize(n, dm[n].cards, colFilter.reg); }));
+    ent = ent.map((e) => ({ ...e, card: loc[e.n][e.p.i] || e.card }));
+  }
   const ownN = ent.filter((e) => qOf(e)).length;
   const rars = [...new Set(ent.map((e) => e.p.r))].sort((a, b) => rarityInfo(a).tier - rarityInfo(b).tier);
   let list = ent.filter((e) => (colFilter.rarity === 'all' || e.p.r === colFilter.rarity) &&

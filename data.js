@@ -109,3 +109,19 @@ export async function getSetData(name) {
     throw e;
   }
 }
+
+/** Noms et textes traduits (fr, de, it, pt) d'une extension : {id: {n, x}} */
+export async function getSetLang(name, lang) {
+  const key = 'set2l:' + lang + ':' + name;
+  const cached = await kvGet(key);
+  if (cached && Date.now() - cached.t < 30 * DAY) return cached.v;
+  try {
+    const json = await getJson(`${API}/cardinfo.php?cardset=${encodeURIComponent(name)}&language=${lang}`);
+    const v = {};
+    for (const c of json.data || []) v[c.id] = { n: c.name, x: c.desc || '' };
+    if (Object.keys(v).length) await kvSet(key, { t: Date.now(), v });
+    return v;
+  } catch (e) {
+    return cached ? cached.v : {};
+  }
+}
