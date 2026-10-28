@@ -639,7 +639,7 @@ const ALBUMS = [
   { id: 'beasts', n: 'Bêtes sacrées', q: 'id=6007213,32491822,69890967', cover: 69890967 },
   { id: 'exodia', n: 'Exodia', q: 'id=33396948,7902349,70903634,8124921,44519536', cover: 33396948 },
   { id: 'bewd', n: 'Dragon Blanc aux Yeux Bleus', q: ['archetype=Blue-Eyes', 'fname=Blue-Eyes', 'fname=Blue%20Eyes', 'fname=Dragon%20Master%20Knight', 'fname=Chaos%20MAX'], cover: 89631139, re: /blue[- ]eyes|chaos max/i },
-  { id: 'cyber', n: 'Cyber Dragon', q: ['archetype=Cyber%20Dragon', 'fname=Cyber%20Dragon', 'fname=Cyber%20End', 'fname=Cyber%20Twin', 'fname=Cyber%20Laser', 'fname=Cyber%20Eternity', 'fname=Chimeratech', 'fname=Cyber%20Ouroboros'], cover: 70095154, re: /cyber (dragon|end|twin|laser|eternity|ouroboros)|chimeratech/i },
+  { id: 'cyber', n: 'Cyber Dragon', q: ['archetype=Cyber%20Dragon', { q: 'fname=Cyber', f: /cyber\s.*dragon|chimeratech|cyber end|overdragon/i }, 'fname=Cyber%20Dragon', 'fname=Cyber%20End', 'fname=Cyber%20Twin', 'fname=Cyber%20Laser', 'fname=Cyber%20Eternity', 'fname=Chimeratech', 'fname=Cyber%20Ouroboros'], cover: 70095154, re: /cyber\s.*dragon|chimeratech|cyber end|overdragon/i },
   { id: 'dm', n: 'Magicien Sombre', q: ['archetype=Dark%20Magician', 'fname=Dark%20Magician'], cover: 46986414, re: /dark magician/i },
   { id: 'reb', n: 'Dragon Noir aux Yeux Rouges', q: ['archetype=Red-Eyes', 'fname=Red-Eyes'], cover: 74677422, re: /red-eyes|red eyes/i },
   { id: 'chaos', n: 'Chaos', q: 'archetype=Chaos', cover: 82301904, re: /^chaos |chaos emperor|chaos soldier/i },
@@ -854,11 +854,30 @@ function bindSpin(box, body, card0, onStop) {
 
 // ---------- Version anime (images de Yugipedia, trouvées à la demande) ----------
 // Les fichiers sont nommés "NomDeLaCarte-JP|AE|EN-Anime-SERIE.png" (DM, GX, 5D, ZX, AV, VR, SV).
-const ANIME_SERIES = { DM: 'Duel Monsters', GX: 'GX', '5D': '5D’s', ZX: 'ZEXAL', AV: 'ARC-V', VR: 'VRAINS', SV: 'SEVENS' };
+const ANIME_SERIES = { ANI: 'Anime', ANI2: 'Anime 2', ANI3: 'Anime 3', MAN: 'Manga', MAN2: 'Manga 2', DM: 'Duel Monsters', GX: 'GX', '5D': '5D’s', ZX: 'ZEXAL', AV: 'ARC-V', VR: 'VRAINS', SV: 'SEVENS' };
 const animeMem = new Map();
 let animeBackMem = null;
 const YPI = 'https://yugipedia.com/api.php?action=query&list=allimages&aiprop=url&format=json&origin=*';
+let animeIdx = null;
+async function repoAnime(name) {
+  try {
+    if (!animeIdx) animeIdx = await (await fetch('anime.json')).json();
+    const v = animeIdx[String(name || '').toLowerCase().replace(/\s+/g, ' ').trim()];
+    if (!v) return null;
+    const out = { }; let a = 0, m = 0;
+    for (const t of v.split(' ')) {
+      const id = t.slice(0, -1), kind = t.slice(-1), n = kind === 'M' ? ++m : ++a;
+      out[(kind === 'M' ? 'MAN' : 'ANI') + (n > 1 ? n : '')] = { rank: 0, url: `https://raw.githubusercontent.com/Perham94/YGOAnimeMangaHQPics/master/${id}.png` };
+    }
+    return out;
+  } catch (e) { return null; }
+}
 async function animeLookup(name) {
+  const [r, y] = await Promise.all([repoAnime(name), yugiAnime(name)]);
+  const by = { ...(r || {}), ...(y || {}) };
+  return Object.keys(by).length ? by : null;
+}
+async function yugiAnime(name) {
   const key = String(name || '').replace(/[^A-Za-z0-9]/g, '');
   if (!key) return null;
   if (animeMem.has(key)) return animeMem.get(key);
@@ -921,7 +940,7 @@ function openSheet(card, p, qty, favKey) {
   const spin = bindSpin($('#sbox'), $('#b3d'), $('.card', ov), null);
   const frontEl = $('#b3d .face.front'), backEl = $('#b3d .face.back');
   const frontHtml = frontEl.innerHTML, backHtmlOrig = backEl.innerHTML;
-  animeLookup(card.n).then(async (by) => {
+  animeLookup(card.en || card.n).then(async (by) => {
     if (!by || !$('#anime')) return;
     const backs = await animeBacks();
     const sers = Object.keys(by);

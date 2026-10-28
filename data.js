@@ -128,16 +128,18 @@ export async function getSetLang(name, lang) {
 
 /** Cartes d'un album : une ou plusieurs requêtes API (ex. "archetype=Blue-Eyes"), monstres TCG uniquement (ni magie ni piège). */
 export async function getAlbumCards(key, queries) {
-  const ck = 'alb3:' + key;
+  const ck = 'alb4:' + key;
   const cached = await kvGet(ck);
   if (cached && Date.now() - cached.t < 14 * DAY) return cached.v;
   const qs = Array.isArray(queries) ? queries : [queries];
   const seen = new Map();
   let fails = 0;
-  for (const q of qs) {
+  for (const qq of qs) {
+    const q = typeof qq === 'string' ? qq : qq.q, f = typeof qq === 'string' ? null : qq.f;
     try {
       const json = await getJson(`${API}/cardinfo.php?${q}`);
       for (const c of json.data || []) {
+        if (f && !f.test(c.name || '')) continue;
         if (seen.has(c.id) || !c.card_sets || !c.card_sets.length || /spell|trap|skill/i.test(c.type || '')) continue;
         const img = c.card_images && c.card_images[0];
         seen.set(c.id, { i: c.id, n: c.name, t: c.type, a: img ? img.id : c.id, x: c.desc || '', e: c.attribute || '', l: c.level ?? c.linkval ?? null, k: c.atk ?? null, d: c.def ?? null, r: c.race || '' });
